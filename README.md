@@ -1,1 +1,114 @@
-# live-debate-app
+# Live Debate App (MVP)
+
+MVP de débat en temps réel pour petits groupes (environ 10 utilisateurs), avec :
+
+- `backend/` en `NestJS + Socket.IO`
+- `frontend/` en `Next.js App Router + Socket.IO client`
+- stockage en mémoire (pas de base de données)
+
+## Fonctionnalités
+
+- Création de rooms de débat
+- 2 participants max par room (auto-assignés `Participant A` et `Participant B`)
+- spectateurs illimités en lecture seule
+- chat temps réel via WebSocket
+- suppression manuelle de messages (mode modérateur côté UI)
+- liste des rooms actives avec compteurs live (participants/spectateurs)
+
+## Structure du projet
+
+```txt
+.
+├── backend/
+└── frontend/
+```
+
+## Variables d'environnement
+
+### Backend
+
+Créer `backend/.env` à partir de `backend/.env.example` :
+
+```env
+PORT=3001
+```
+
+### Frontend
+
+Créer `frontend/.env.local` à partir de `frontend/.env.example` :
+
+```env
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
+```
+
+## Lancer en local
+
+### 1) Démarrer le backend
+
+```bash
+cd backend
+npm install
+npm run start:dev
+```
+
+Backend disponible sur `http://localhost:3001`.
+
+### 2) Démarrer le frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend disponible sur `http://localhost:3000`.
+
+## Événements Socket.IO (backend)
+
+- `createRoom` → crée une room (`title`, `roomId?`)
+- `joinRoom` → rejoint une room (`roomId`, `username?`)
+- `sendMessage` → envoie un message (participants uniquement)
+- `deleteMessage` → supprime un message (modération manuelle)
+- `getRooms` → renvoie la liste des rooms
+
+Événements push émis par le serveur :
+
+- `roomsUpdated` → liste globale des rooms
+- `roomUpdated` → état complet d'une room
+- `joinedRoom` → rôle attribué à l'utilisateur
+- `errorMessage` → erreurs métier
+
+## Déploiement
+
+## Backend sur Render
+
+Créer un **Web Service** sur Render pointant sur le repo GitHub.
+
+Configuration :
+
+- Root Directory: `backend`
+- Build Command: `npm install && npm run build`
+- Start Command: `npm run start:prod`
+- Environment Variable:
+  - `PORT` peut être laissé vide (Render l'injecte automatiquement)
+
+Le backend écoute `process.env.PORT`, compatible Render.
+
+## Frontend sur Vercel
+
+Créer un projet Vercel depuis le même repo.
+
+Configuration :
+
+- Root Directory: `frontend`
+- Framework preset: `Next.js`
+- Environment Variables:
+  - `NEXT_PUBLIC_BACKEND_URL=https://<votre-backend-render>.onrender.com`
+
+Puis déployer.
+
+## Notes MVP
+
+- Pas d'authentification
+- Pas de persistance (reset à chaque redémarrage backend)
+- CORS ouvert à `*` (MVP uniquement)
