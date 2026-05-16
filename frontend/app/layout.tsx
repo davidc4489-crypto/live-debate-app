@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Topbar } from "../components/Topbar";
 
 export const metadata: Metadata = {
   title: "Live Debate",
@@ -13,21 +13,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body>
-        <header className="topbar">
-          <div className="topbar-inner">
-            <Link href="/" className="brand">
-              Debately
-            </Link>
-            <nav className="nav-links">
-              <Link href="/">Accueil</Link>
-              <Link href="/#latest">Débats</Link>
-              <Link href="/#latest">Explorer</Link>
-            </nav>
-            <Link href="/room/new" className="btn btn-primary nav-cta">
-              Créer débat
-            </Link>
-          </div>
-        </header>
+        <Topbar />
         <main className="page">{children}</main>
       </body>
     </html>

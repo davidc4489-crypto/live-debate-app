@@ -318,6 +318,145 @@ h1 {
   display: none;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.auth-placeholder {
+  width: 140px;
+  height: 36px;
+}
+
+.auth-user-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(16, 24, 40, 0.45);
+  backdrop-filter: blur(4px);
+  animation: fade-slide 200ms ease both;
+}
+
+.auth-modal {
+  position: relative;
+  width: min(100%, 440px);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.auth-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.auth-modal-close:hover {
+  transform: none;
+  color: var(--text);
+}
+
+.auth-modal h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.auth-modal-subtitle {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.auth-form {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+  color: #344054;
+  font-size: 0.92rem;
+}
+
+.auth-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.auth-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.auth-switch {
+  margin: 16px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.auth-switch-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-switch-link:hover {
+  transform: none;
+}
+
 .card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -556,6 +695,10 @@ button.danger {
   .nav-links,
   .nav-cta {
     display: inline-flex;
+  }
+
+  .auth-user-name {
+    max-width: 180px;
   }
 
   .debate-grid {
