@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ParticipantPill } from "@/components/ParticipantPill";
-import { DebateListItem, formatDebateDate, getDebateCtaLabel } from "@/lib/debate";
+import {
+  DebateListItem,
+  formatDebateDate,
+  getDebateAudienceLabel,
+  getDebateCtaLabel,
+} from "@/lib/debate";
 
 interface DebateCardProps {
   debate: DebateListItem;
@@ -54,8 +59,7 @@ export function DebateCard({
         <span>{formatDebateDate(debate.createdAt)}</span>
       </div>
       <div className="meta-row">
-        <span>{debate.views} vues</span>
-        <span>{debate.spectators} spectateurs</span>
+        <span>{getDebateAudienceLabel(debate)}</span>
       </div>
 
       <Link

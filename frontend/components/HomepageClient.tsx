@@ -6,7 +6,7 @@ import { AuthModal, AuthModalMode } from "@/components/AuthModal";
 import { DebateCard } from "@/components/DebateCard";
 import { FilterChips } from "@/components/FilterChips";
 import { SectionLayout } from "@/components/SectionLayout";
-import { DebateListItem, DebateTheme, debateThemes } from "@/lib/debate";
+import { DebateListItem, DebateTheme, debateThemes, getDebatePopularityScore } from "@/lib/debate";
 import { fetchDebates } from "@/lib/debates-api";
 import { addFavorite, fetchFavorites, removeFavorite } from "@/lib/favorites-api";
 import { useAuthSession } from "@/lib/useAuthSession";
@@ -151,7 +151,7 @@ export function HomepageClient() {
 
   const latestDebates = filteredDebates;
   const trendingDebates = [...filteredDebates]
-    .sort((a, b) => b.views - a.views)
+    .sort((a, b) => getDebatePopularityScore(b) - getDebatePopularityScore(a))
     .slice(0, 6);
   const continueWatching = filteredDebates.filter((debate) => debate.messagesCount >= 10);
 
@@ -250,7 +250,10 @@ export function HomepageClient() {
             )}
           </SectionLayout>
 
-          <SectionLayout title="Débats les plus populaires" subtitle="Classement basé sur le nombre de vues.">
+          <SectionLayout
+            title="Débats les plus populaires"
+            subtitle="Classement par vues (terminés) ou spectateurs (en cours)."
+          >
             {trendingDebates.length > 0 ? (
               <div className="debate-grid">
                 {trendingDebates.map((debate) => renderDebateCard(debate, true))}

@@ -40,6 +40,22 @@ export function getDebateCtaLabel(status: DebateStatus): string {
   return "Rejoindre";
 }
 
+/** Débat terminé → vues ; en cours / en attente → spectateurs uniquement */
+export function getDebateAudienceLabel(debate: {
+  status: DebateStatus;
+  views: number;
+  spectators: number;
+}): string {
+  if (debate.status === "finished") {
+    return `${debate.views} vue${debate.views !== 1 ? "s" : ""}`;
+  }
+  return `${debate.spectators} spectateur${debate.spectators !== 1 ? "s" : ""}`;
+}
+
+export function getDebatePopularityScore(debate: DebateListItem): number {
+  return debate.status === "finished" ? debate.views : debate.spectators;
+}
+
 export interface DebateMessage {
   id: string;
   author: string;
