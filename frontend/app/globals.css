@@ -515,6 +515,114 @@
     @apply gap-8;
   }
 
+  /* Mission / About page */
+  .mission-page-wrap.stack {
+    @apply gap-8;
+  }
+
+  .mission-page {
+    @apply mx-auto flex max-w-reading flex-col gap-12;
+  }
+
+  .mission-hero {
+    @apply space-y-5 pb-4;
+  }
+
+  .mission-hero-lead {
+    @apply m-0 max-w-2xl text-lg leading-relaxed text-ink-secondary;
+  }
+
+  .mission-section {
+    @apply space-y-5;
+  }
+
+  .mission-section-label {
+    @apply m-0 text-xs font-semibold uppercase tracking-wider text-brand;
+  }
+
+  .mission-section h2 {
+    @apply m-0 text-2xl leading-snug;
+  }
+
+  .mission-prose {
+    @apply space-y-4 text-[1.02rem] leading-relaxed text-ink-secondary;
+  }
+
+  .mission-prose p {
+    @apply m-0;
+  }
+
+  .mission-highlight {
+    @apply border-l-4 border-brand bg-brand-light/40 py-2 pl-4 font-medium text-ink !important;
+  }
+
+  .mission-checklist {
+    @apply m-0 grid gap-2 border-t border-border pt-5 pl-0 list-none;
+  }
+
+  .mission-checklist li {
+    @apply relative pl-6 text-[0.98rem] leading-relaxed text-ink-secondary;
+  }
+
+  .mission-checklist li::before {
+    content: "";
+    @apply absolute left-0 top-[0.55em] h-1.5 w-1.5 rounded-full bg-brand;
+  }
+
+  .mission-principles-grid,
+  .mission-audience-grid {
+    @apply grid gap-5 sm:grid-cols-3;
+  }
+
+  .mission-principle-card h3,
+  .mission-audience-card h3 {
+    @apply m-0 mb-2 text-base font-semibold text-ink;
+  }
+
+  .mission-principle-card p,
+  .mission-audience-card p {
+    @apply m-0 text-sm leading-relaxed text-ink-muted;
+  }
+
+  .mission-steps {
+    @apply m-0 list-none space-y-6 p-0;
+  }
+
+  .mission-step {
+    @apply flex gap-4;
+  }
+
+  .mission-step-num {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-light text-sm font-bold text-brand;
+  }
+
+  .mission-step h3 {
+    @apply m-0 mb-1 text-base font-semibold;
+  }
+
+  .mission-step p {
+    @apply m-0 text-sm leading-relaxed text-ink-muted;
+  }
+
+  .mission-vision {
+    @apply bg-surface-muted/30;
+  }
+
+  .mission-tagline {
+    @apply text-base font-medium italic text-ink !important;
+  }
+
+  .mission-cta-bottom {
+    @apply mt-6 border-t border-border pt-6;
+  }
+
+  @media (max-width: 640px) {
+    .mission-principles-grid,
+    .mission-audience-grid {
+      @apply grid-cols-1;
+    }
+  }
+
   .notebook-layout {
     @apply mx-auto flex w-full max-w-content flex-col gap-10;
   }

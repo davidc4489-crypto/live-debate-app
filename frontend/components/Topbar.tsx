@@ -75,7 +75,7 @@ export function Topbar() {
           <nav className="nav-links">
             <Link href="/">Accueil</Link>
             <Link href="/#latest">Débats</Link>
-            <Link href="/#latest">Explorer</Link>
+            <Link href="/notre-mission">Notre mission</Link>
           </nav>
 
           <div className="topbar-actions">
