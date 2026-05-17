@@ -17,11 +17,16 @@ export const debateThemes: DebateTheme[] = [
 
 export type DebateStatus = "pending" | "active" | "finished";
 
+export interface DebateParticipant {
+  userId: string | null;
+  displayName: string;
+}
+
 export interface DebateListItem {
   id: string;
   title: string;
   theme: string;
-  participants: [string, string];
+  participants: [DebateParticipant, DebateParticipant];
   messagesCount: number;
   views: number;
   spectators: number;
@@ -47,7 +52,7 @@ export interface DebateDetail {
   title: string;
   theme: string;
   status: DebateStatus;
-  participants: [string, string];
+  participants: [DebateParticipant, DebateParticipant];
   messages: DebateMessage[];
   endedAt: string | null;
 }

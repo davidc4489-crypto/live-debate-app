@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { ParticipantPill } from "@/components/ParticipantPill";
 import { DebateDetail, formatDebateDate } from "@/lib/debate";
 import { addFavorite, fetchFavoriteIds, removeFavorite } from "@/lib/favorites-api";
 import { useAuthSession } from "@/lib/useAuthSession";
@@ -9,15 +10,6 @@ import { DebateNoteSection } from "./DebateNoteSection";
 
 interface DebateReplayClientProps {
   debate: DebateDetail;
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 }
 
 export function DebateReplayClient({ debate }: DebateReplayClientProps) {
@@ -102,10 +94,10 @@ export function DebateReplayClient({ debate }: DebateReplayClientProps) {
 
           <div className="participants debate-replay-participants">
             {debate.participants.map((participant) => (
-              <div key={participant} className="participant-pill">
-                <span className="avatar">{initials(participant)}</span>
-                <span>{participant}</span>
-              </div>
+              <ParticipantPill
+                key={participant.userId ?? participant.displayName}
+                participant={participant}
+              />
             ))}
           </div>
         </div>

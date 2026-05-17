@@ -3,6 +3,7 @@ import { AuthModule } from "./auth/auth.module";
 import { DebatesModule } from "./debates/debates.module";
 import { ModerationModule } from "./moderation/moderation.module";
 import { FavoritesModule } from "./favorites/favorites.module";
+import { ProfilesModule } from "./profiles/profiles.module";
 import { NotesModule } from "./notes/notes.module";
 import { DebateGateway } from "./debate.gateway";
 import { RoomsController } from "./rooms.controller";
@@ -16,6 +17,7 @@ import { SupabaseModule } from "./supabase/supabase.module";
     DebatesModule,
     NotesModule,
     FavoritesModule,
+    ProfilesModule,
     ModerationModule,
   ],
   controllers: [RoomsController],

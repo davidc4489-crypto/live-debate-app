@@ -1,5 +1,10 @@
 export type DebateStatus = "pending" | "active" | "finished";
 
+export interface DebateParticipantDto {
+  userId: string | null;
+  displayName: string;
+}
+
 export interface DebateMessageDto {
   id: string;
   author: string;
@@ -12,7 +17,7 @@ export interface DebateDetailDto {
   title: string;
   theme: string;
   status: DebateStatus;
-  participants: [string, string];
+  participants: [DebateParticipantDto, DebateParticipantDto];
   messages: DebateMessageDto[];
   endedAt: string | null;
 }
@@ -21,7 +26,7 @@ export interface DebateListItemDto {
   id: string;
   title: string;
   theme: string;
-  participants: [string, string];
+  participants: [DebateParticipantDto, DebateParticipantDto];
   messagesCount: number;
   views: number;
   spectators: number;

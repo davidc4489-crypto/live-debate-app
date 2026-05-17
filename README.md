@@ -45,7 +45,26 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
 
 ### 1) Appliquer le schéma Supabase
 
-Dans le SQL Editor Supabase (ou via CLI), exécuter les migrations dans `supabase/migrations/` (au minimum `00001_initial_schema.sql`).
+Dans le SQL Editor Supabase (ou via CLI), exécuter les migrations dans `supabase/migrations/` :
+
+1. `00001_initial_schema.sql` (tables de base)
+2. `00003_user_profiles.sql` (**obligatoire pour les profils et intérêts**)
+3. `00004_more_interests.sql` (optionnel — ~30 intérêts supplémentaires)
+
+**Profils / intérêts** — si vous voyez `Could not find the table 'public.interests'` :
+
+1. [Supabase Dashboard](https://supabase.com/dashboard) → votre projet → **SQL Editor** → **New query**
+2. Copier-coller tout le fichier `supabase/migrations/00003_user_profiles.sql`
+3. **Run**
+
+Ou en local (avec le mot de passe base dans `DATABASE_URL`) :
+
+```bash
+cd backend
+npm install pg --save-dev
+# DATABASE_URL=postgresql://postgres.[ref]:[PASSWORD]@... (Settings → Database → Connection string)
+npm run migrate:profiles
+```
 
 ### 2) Seed des débats d'exemple
 

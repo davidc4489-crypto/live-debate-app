@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { ParticipantPill } from "@/components/ParticipantPill";
 import { DebateListItem, formatDebateDate, getDebateCtaLabel } from "@/lib/debate";
 
 interface DebateCardProps {
@@ -9,15 +10,6 @@ interface DebateCardProps {
   showFavorite?: boolean;
   favoriteLoading?: boolean;
   onFavoriteToggle?: (debateId: string, nextFavorite: boolean) => void;
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 }
 
 export function DebateCard({
@@ -50,10 +42,10 @@ export function DebateCard({
 
       <div className="participants">
         {debate.participants.map((participant) => (
-          <div key={participant} className="participant-pill">
-            <span className="avatar">{initials(participant)}</span>
-            <span>{participant}</span>
-          </div>
+          <ParticipantPill
+            key={participant.userId ?? participant.displayName}
+            participant={participant}
+          />
         ))}
       </div>
 

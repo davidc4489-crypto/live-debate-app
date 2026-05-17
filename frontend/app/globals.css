@@ -329,6 +329,28 @@ h1 {
   font-size: 0.88rem;
 }
 
+.participant-pill-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.participant-pill-link:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.debate-room-participants {
+  margin: 10px 0 8px;
+}
+
 .avatar {
   width: 24px;
   height: 24px;
@@ -959,6 +981,385 @@ button.danger {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* Profil public */
+.profile-page,
+.profile-edit-page {
+  display: grid;
+  gap: 16px;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.profile-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+}
+
+.profile-hero-main {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-avatar-wrap {
+  flex-shrink: 0;
+}
+
+.profile-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+}
+
+.profile-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+.profile-identity h1 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+}
+
+.profile-username {
+  margin: 0 0 6px;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.profile-meta {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+}
+
+.profile-bio {
+  margin: 0;
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+.profile-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.profile-badge.premium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.profile-badge.score {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.profile-section {
+  padding: 18px 20px;
+}
+
+.profile-section h2 {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+}
+
+.profile-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.profile-section-head h2 {
+  margin: 0;
+}
+
+.profile-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-stat {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.profile-stat strong {
+  font-size: 1.5rem;
+  color: #0f172a;
+}
+
+.profile-stat span {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.profile-debates-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.profile-debate-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fafbfc;
+}
+
+.profile-debate-item h3 {
+  margin: 6px 0 4px;
+  font-size: 1rem;
+}
+
+.profile-debate-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.profile-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.profile-status.status-active {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.profile-status.status-finished {
+  background: #f2f4f7;
+  color: #475467;
+}
+
+.profile-status.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.profile-edit-head h1 {
+  margin: 0 0 6px;
+}
+
+.profile-edit-form {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.profile-edit-form .field,
+.profile-edit-form fieldset.field {
+  display: grid;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.profile-edit-form .field > span,
+.profile-edit-form fieldset.field > span {
+  font-weight: 600;
+  color: #344054;
+  font-size: 0.92rem;
+}
+
+.profile-edit-form input,
+.profile-edit-form textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 13px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 400;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.profile-edit-form input::placeholder,
+.profile-edit-form textarea::placeholder {
+  color: #98a2b3;
+}
+
+.profile-edit-form input:focus,
+.profile-edit-form textarea:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.profile-edit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.profile-interests-hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.profile-interest-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.interest-pill {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: #344054;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transform: none;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.interest-pill:hover {
+  transform: none;
+  border-color: #93c5fd;
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.interest-pill.selected {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.interest-pill.selected:hover {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.profile-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.topbar-profile-wrap {
+  position: relative;
+}
+
+.topbar-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topbar-profile-icon {
+  flex-shrink: 0;
+}
+
+.topbar-profile-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 210px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.topbar-profile-menu-item {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #344054;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.topbar-profile-menu-item:hover {
+  background: #f2f4f7;
+  color: #0f172a;
+}
+
+.auth-user-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.auth-user-link:hover {
+  color: #2563eb;
+}
+
+@media (max-width: 640px) {
+  .profile-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-edit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-debate-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .reveal {

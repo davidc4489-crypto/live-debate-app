@@ -9,6 +9,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "seed": "node scripts/seed-debates.mjs",
+    "migrate:profiles": "node scripts/apply-profile-migration.mjs",
     "test:moderation": "node scripts/test-moderation.mjs",
     "test:moderation:live": "node scripts/test-moderation.mjs --live"
   },
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
     "@types/node": "^22.10.2",
+    "pg": "^8.20.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.2"

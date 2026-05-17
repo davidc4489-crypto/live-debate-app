@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { DebateNoteSection } from "@/components/DebateNoteSection";
+import { ParticipantPill } from "@/components/ParticipantPill";
 import { MAX_MESSAGE_LENGTH } from "@/lib/constants";
 import { DebateDetail } from "@/lib/debate";
 import { getSocket } from "@/lib/socket";
@@ -165,7 +166,17 @@ export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
     <div className="chat-layout reveal">
       <section className="chat-header card">
         <div>
-          <h2>{room?.title || `Room ${roomId}`}</h2>
+          <h2>{room?.title || dbDebate?.title || `Room ${roomId}`}</h2>
+          {dbDebate ? (
+            <div className="participants debate-room-participants">
+              {dbDebate.participants.map((participant) => (
+                <ParticipantPill
+                  key={participant.userId ?? participant.displayName}
+                  participant={participant}
+                />
+              ))}
+            </div>
+          ) : null}
           <p className="muted">
             Participants: {room?.participants ?? 0} | Spectateurs: {room?.spectators ?? 0}
           </p>

@@ -1,8 +1,14 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { SupabaseService } from "../supabase/supabase.service";
-import { DebateDetailDto, DebateListItemDto } from "./debates.types";
+import {
+  DebateDetailDto,
+  DebateListItemDto,
+  DebateParticipantDto,
+} from "./debates.types";
 
 interface ProfileRow {
+  id: string;
+  username: string | null;
   first_name: string | null;
   last_name: string | null;
   email: string;
@@ -11,6 +17,7 @@ interface ProfileRow {
 interface ParticipantRow {
   role: string;
   position: number | null;
+  user_id: string;
   profiles: ProfileRow | ProfileRow[] | null;
 }
 
@@ -34,6 +41,7 @@ export interface DebateRow {
 }
 
 function displayName(profile: ProfileRow): string {
+  if (profile.username?.trim()) return profile.username.trim();
   const full = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
   return full || profile.email.split("@")[0];
 }
@@ -62,7 +70,8 @@ export class DebatesService {
         debate_participants (
           role,
           position,
-          profiles ( first_name, last_name, email )
+          user_id,
+          profiles ( id, username, first_name, last_name, email )
         ),
         debate_views ( id )
       `,
@@ -100,7 +109,8 @@ export class DebatesService {
         debate_participants (
           role,
           position,
-          profiles ( first_name, last_name, email )
+          user_id,
+          profiles ( id, username, first_name, last_name, email )
         )
       `,
       )
@@ -114,16 +124,23 @@ export class DebatesService {
     return this.toDetail(data as DebateRow);
   }
 
-  private extractParticipantNames(debate: DebateRow): [string, string] {
+  private extractParticipants(debate: DebateRow): [DebateParticipantDto, DebateParticipantDto] {
     const participants = (debate.debate_participants ?? [])
       .filter((row) => row.role === "participant" && row.position != null)
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .map((row) => {
         const profile = unwrapOne(row.profiles);
-        return profile ? displayName(profile) : "Participant";
+        const userId = row.user_id ?? profile?.id ?? null;
+        return {
+          userId,
+          displayName: profile ? displayName(profile) : "Participant",
+        };
       });
 
-    return [participants[0] ?? "Participant A", participants[1] ?? "Participant B"];
+    return [
+      participants[0] ?? { userId: null, displayName: "Participant A" },
+      participants[1] ?? { userId: null, displayName: "Participant B" },
+    ];
   }
 
   private toDetail(debate: DebateRow): DebateDetailDto {
@@ -147,7 +164,7 @@ export class DebatesService {
       title: debate.title,
       theme: category?.name ?? "Général",
       status: debate.status as "pending" | "active" | "finished",
-      participants: this.extractParticipantNames(debate),
+      participants: this.extractParticipants(debate),
       messages,
       endedAt: debate.ended_at ?? null,
     };
@@ -163,7 +180,7 @@ export class DebatesService {
       id: debate.id,
       title: debate.title,
       theme: category?.name ?? "Général",
-      participants: this.extractParticipantNames(debate),
+      participants: this.extractParticipants(debate),
       messagesCount: debate.messages?.length ?? 0,
       views: debate.debate_views?.length ?? 0,
       spectators: spectatorCount,

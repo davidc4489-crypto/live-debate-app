@@ -24,7 +24,8 @@ const DEBATE_SELECT = `
   debate_participants (
     role,
     position,
-    profiles ( first_name, last_name, email )
+    user_id,
+    profiles ( id, username, first_name, last_name, email )
   ),
   debate_views ( id )
 `;
