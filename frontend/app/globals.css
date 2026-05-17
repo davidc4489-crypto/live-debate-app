@@ -351,6 +351,157 @@ h1 {
   margin: 10px 0 8px;
 }
 
+.profile-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.profile-social-meta {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
+  color: #475467;
+}
+
+.profile-following-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.profile-following-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fafbfc;
+}
+
+.profile-following-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.profile-following-link:hover {
+  background: #f0f9ff;
+}
+
+.profile-following-username {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.profile-visibility-options {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.visibility-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: #344054;
+  cursor: pointer;
+}
+
+.notifications-wrap {
+  position: relative;
+}
+
+.notifications-btn {
+  position: relative;
+}
+
+.notifications-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.notifications-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  width: min(360px, 90vw);
+  max-height: 400px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.notifications-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: #fff;
+}
+
+.notifications-empty {
+  padding: 16px;
+  margin: 0;
+}
+
+.notifications-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notifications-item.unread {
+  background: #eff6ff;
+}
+
+.notifications-item-link {
+  display: block;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid #f2f4f7;
+}
+
+.notifications-item-link:hover {
+  background: #f8fafc;
+}
+
+.notifications-item-title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin-bottom: 4px;
+}
+
+.notifications-item-message {
+  display: block;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
 .avatar {
   width: 24px;
   height: 24px;

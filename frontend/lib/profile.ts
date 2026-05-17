@@ -33,12 +33,41 @@ export interface ProfileDebate {
   endedAt: string | null;
 }
 
+export interface ProfileFollowStats {
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  followingListVisibility: "public" | "private";
+}
+
 export interface PublicProfile {
   user: PublicProfileUser;
   interests: Interest[];
   stats: ProfileStats;
+  followStats: ProfileFollowStats;
   debates: ProfileDebate[];
   debatesTotal: number;
+}
+
+export interface FollowedUser {
+  userId: string;
+  displayName: string;
+  username: string | null;
+  avatarUrl: string | null;
+  followedAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  type: "new_debate";
+  actorId: string | null;
+  actorDisplayName: string | null;
+  debateId: string | null;
+  roomId: string | null;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
 }
 
 export function getProfileScoreLabel(score: number): string {

@@ -33,10 +33,18 @@ export interface ProfileDebateDto {
   endedAt: string | null;
 }
 
+export interface ProfileFollowStatsDto {
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  followingListVisibility: "public" | "private";
+}
+
 export interface PublicProfileDto {
   user: PublicProfileUserDto;
   interests: InterestDto[];
   stats: ProfileStatsDto;
+  followStats: ProfileFollowStatsDto;
   debates: ProfileDebateDto[];
   debatesTotal: number;
 }

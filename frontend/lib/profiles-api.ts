@@ -27,7 +27,10 @@ export async function fetchPublicProfile(
   const query = params.toString();
   const url = `${getBackendUrl()}/users/${userId}/profile${query ? `?${query}` : ""}`;
 
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
 
   if (response.status === 404) {
     throw new Error("Profil introuvable");
@@ -58,6 +61,7 @@ export async function updateOwnProfile(input: {
   firstName?: string | null;
   lastName?: string | null;
   interestIds?: string[];
+  followingListVisibility?: "public" | "private";
 }): Promise<PublicProfile> {
   const response = await fetch(`${getBackendUrl()}/users/me/profile`, {
     method: "PATCH",

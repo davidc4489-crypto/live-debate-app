@@ -19,6 +19,7 @@ import {
 import { AuthService } from "./auth/auth.service";
 import { MessageFlagsService } from "./moderation/message-flags.service";
 import { ModerationService } from "./moderation/moderation.service";
+import { DebateCreationService } from "./debates/debate-creation.service";
 import { RoomsService } from "./rooms.service";
 
 @WebSocketGateway({
@@ -35,6 +36,7 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     private readonly authService: AuthService,
     private readonly moderationService: ModerationService,
     private readonly messageFlagsService: MessageFlagsService,
+    private readonly debateCreationService: DebateCreationService,
   ) {
     this.turnInterval = setInterval(() => {
       const changedRoomIds = this.roomsService.tickTurns();
@@ -107,8 +109,9 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
       return;
     }
 
+    let creator;
     try {
-      await this.authService.getMe(accessToken);
+      creator = await this.authService.getMe(accessToken);
     } catch {
       client.emit("errorMessage", {
         message: "Session invalide ou expirée. Reconnectez-vous.",
@@ -130,6 +133,10 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     const room = this.roomsService.createRoom(title, payload.roomId, turnDuration);
     client.emit("roomCreated", this.roomsService.toPublicRoom(room));
     this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
+
+    void this.debateCreationService
+      .onLiveDebateCreated(creator.id, room.id, title, turnDuration)
+      .catch(() => undefined);
   }
 
   @SubscribeMessage("joinRoom")

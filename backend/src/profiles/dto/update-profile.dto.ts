@@ -6,4 +6,5 @@ export class UpdateProfileDto {
   firstName?: string | null;
   lastName?: string | null;
   interestIds?: string[];
+  followingListVisibility?: "public" | "private";
 }

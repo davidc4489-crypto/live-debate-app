@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { getDisplayName, getStoredAuth, signOut } from "../lib/auth";
 import { useAuthSession } from "../lib/useAuthSession";
 import { AuthModal, AuthModalMode } from "./AuthModal";
+import { NotificationsMenu } from "./NotificationsMenu";
 
 export function Topbar() {
   const router = useRouter();
@@ -85,6 +86,7 @@ export function Topbar() {
                 <Link href="/notebook" className="btn btn-ghost btn-sm">
                   Notebook
                 </Link>
+                <NotificationsMenu />
                 <div className="topbar-profile-wrap" ref={profileMenuRef}>
                   <button
                     type="button"

@@ -25,10 +25,12 @@ export class ProfilesController {
     @Param("userId") userId: string,
     @Query("limit") limit?: string,
     @Query("offset") offset?: string,
+    @Headers("authorization") authorization?: string,
   ) {
     return this.profilesService.getPublicProfile(userId, {
       limit: limit ? Math.min(Number(limit) || 20, 50) : 20,
       offset: offset ? Math.max(Number(offset) || 0, 0) : 0,
+      viewerToken: this.optionalBearer(authorization),
     });
   }
 
@@ -38,6 +40,12 @@ export class ProfilesController {
     @Body() body: UpdateProfileDto,
   ) {
     return this.profilesService.updateOwnProfile(this.extractBearerToken(authorization), body);
+  }
+
+  private optionalBearer(authorization?: string): string | undefined {
+    if (!authorization?.startsWith("Bearer ")) return undefined;
+    const token = authorization.slice(7).trim();
+    return token || undefined;
   }
 
   private extractBearerToken(authorization?: string): string {

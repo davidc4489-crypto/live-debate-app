@@ -4,8 +4,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { AuthService } from "../auth/auth.service";
+import { FollowsService } from "../follows/follows.service";
 import { SupabaseService } from "../supabase/supabase.service";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
+import { buildDisplayName } from "./profile.utils";
 import {
   InterestDto,
   PublicProfileDto,
@@ -42,24 +44,12 @@ interface RpcProfilePayload {
   debatesTotal: number;
 }
 
-export function buildDisplayName(user: {
-  username?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  email?: string;
-}): string {
-  if (user.username?.trim()) return user.username.trim();
-  const full = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  if (full) return full;
-  if (user.email) return user.email.split("@")[0];
-  return "Utilisateur";
-}
-
 @Injectable()
 export class ProfilesService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly authService: AuthService,
+    private readonly followsService: FollowsService,
   ) {}
 
   async listInterests(): Promise<InterestDto[]> {
@@ -83,7 +73,7 @@ export class ProfilesService {
 
   async getPublicProfile(
     userId: string,
-    options?: { limit?: number; offset?: number },
+    options?: { limit?: number; offset?: number; viewerToken?: string },
   ): Promise<PublicProfileDto> {
     const limit = options?.limit ?? 20;
     const offset = options?.offset ?? 0;
@@ -95,15 +85,16 @@ export class ProfilesService {
       p_debates_offset: offset,
     });
 
+    let profile: PublicProfileDto;
     if (error) {
-      return this.getPublicProfileFallback(userId, limit, offset);
-    }
-
-    if (!data) {
+      profile = await this.getPublicProfileFallback(userId, limit, offset);
+    } else if (!data) {
       throw new NotFoundException("Profil introuvable");
+    } else {
+      profile = this.mapRpcPayload(data as RpcProfilePayload);
     }
 
-    return this.mapRpcPayload(data as RpcProfilePayload);
+    return this.attachFollowStats(profile, userId, options?.viewerToken);
   }
 
   async updateOwnProfile(
@@ -166,6 +157,13 @@ export class ProfilesService {
 
     if (dto.lastName !== undefined) {
       updates.last_name = dto.lastName?.trim() || null;
+    }
+
+    if (dto.followingListVisibility !== undefined) {
+      if (dto.followingListVisibility !== "public" && dto.followingListVisibility !== "private") {
+        throw new BadRequestException("Visibilité invalide (public ou private)");
+      }
+      updates.following_list_visibility = dto.followingListVisibility;
     }
 
     if (Object.keys(updates).length > 0) {
@@ -246,6 +244,12 @@ export class ProfilesService {
         messagesCount: payload.stats.messagesCount ?? 0,
         debatesCreatedCount: payload.stats.debatesCreatedCount ?? 0,
         profileScore: payload.stats.profileScore ?? 0,
+      },
+      followStats: {
+        followersCount: 0,
+        followingCount: 0,
+        isFollowing: false,
+        followingListVisibility: "public",
       },
       debates: (payload.debates ?? []).map((debate) => ({
         id: debate.id,
@@ -395,6 +399,36 @@ export class ProfilesService {
       },
       debates,
       debatesTotal: participated,
+      followStats: {
+        followersCount: 0,
+        followingCount: 0,
+        isFollowing: false,
+        followingListVisibility: "public",
+      },
+    };
+  }
+
+  private async attachFollowStats(
+    profile: PublicProfileDto,
+    userId: string,
+    viewerToken?: string,
+  ): Promise<PublicProfileDto> {
+    const supabase = this.supabaseService.getServiceClient();
+    const { data: visRow } = await supabase
+      .from("profiles")
+      .select("following_list_visibility")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const stats = await this.followsService.getFollowStats(userId, viewerToken);
+
+    return {
+      ...profile,
+      followStats: {
+        ...stats,
+        followingListVisibility:
+          (visRow?.following_list_visibility as "public" | "private") ?? "public",
+      },
     };
   }
 }

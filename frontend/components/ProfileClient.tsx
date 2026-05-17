@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { FollowButton } from "@/components/FollowButton";
+import { ProfileFollowingSection } from "@/components/ProfileFollowingSection";
 import { formatDebateDate, getDebateCtaLabel } from "@/lib/debate";
 import {
   formatMemberSince,
@@ -12,6 +14,8 @@ import {
 interface ProfileClientProps {
   profile: PublicProfile;
   isOwner?: boolean;
+  canFollow?: boolean;
+  onFollowChange?: (following: boolean) => void;
 }
 
 function initials(name: string) {
@@ -29,8 +33,13 @@ function statusLabel(status: string): string {
   return "En attente";
 }
 
-export function ProfileClient({ profile, isOwner = false }: ProfileClientProps) {
-  const { user, interests, stats, debates } = profile;
+export function ProfileClient({
+  profile,
+  isOwner = false,
+  canFollow = false,
+  onFollowChange,
+}: ProfileClientProps) {
+  const { user, interests, stats, debates, followStats } = profile;
   const scoreLabel = useMemo(() => getProfileScoreLabel(stats.profileScore), [stats.profileScore]);
 
   return (
@@ -64,6 +73,14 @@ export function ProfileClient({ profile, isOwner = false }: ProfileClientProps) 
               {user.age != null ? ` · ${user.age} ans` : null}
             </p>
 
+            <p className="profile-social-meta">
+              <strong>{followStats.followersCount}</strong> abonné
+              {followStats.followersCount > 1 ? "s" : ""}
+              <span className="muted"> · </span>
+              <strong>{followStats.followingCount}</strong> abonnement
+              {followStats.followingCount > 1 ? "s" : ""}
+            </p>
+
             {user.bio ? (
               <p className="profile-bio">{user.bio}</p>
             ) : (
@@ -72,12 +89,27 @@ export function ProfileClient({ profile, isOwner = false }: ProfileClientProps) 
           </div>
         </div>
 
-        {isOwner ? (
-          <Link href="/profile/edit" className="btn btn-primary btn-sm">
-            Modifier mon profil
-          </Link>
-        ) : null}
+        <div className="profile-hero-actions">
+          {canFollow ? (
+            <FollowButton
+              userId={user.id}
+              initialFollowing={followStats.isFollowing}
+              onChange={onFollowChange}
+            />
+          ) : null}
+          {isOwner ? (
+            <Link href="/profile/edit" className="btn btn-primary btn-sm">
+              Modifier mon profil
+            </Link>
+          ) : null}
+        </div>
       </section>
+
+      <ProfileFollowingSection
+        userId={user.id}
+        isOwner={isOwner}
+        visibility={followStats.followingListVisibility}
+      />
 
       {interests.length > 0 ? (
         <section className="profile-section card">

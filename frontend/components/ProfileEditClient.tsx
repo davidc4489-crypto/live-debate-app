@@ -17,6 +17,9 @@ export function ProfileEditClient() {
   const [bio, setBio] = useState("");
   const [age, setAge] = useState("");
   const [selectedInterestIds, setSelectedInterestIds] = useState<string[]>([]);
+  const [followingListVisibility, setFollowingListVisibility] = useState<"public" | "private">(
+    "public",
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -49,6 +52,7 @@ export function ProfileEditClient() {
         setBio(profile.user.bio ?? "");
         setAge(profile.user.age != null ? String(profile.user.age) : "");
         setSelectedInterestIds(profile.interests.map((item) => item.id));
+        setFollowingListVisibility(profile.followStats?.followingListVisibility ?? "public");
         setAllInterests(interests);
       } catch (err) {
         if (!cancelled) {
@@ -94,6 +98,7 @@ export function ProfileEditClient() {
         bio: bio.trim() || null,
         age: parsedAge,
         interestIds: selectedInterestIds,
+        followingListVisibility,
       });
 
       router.push(`/profile/${user.id}`);
@@ -169,6 +174,35 @@ export function ProfileEditClient() {
             placeholder="18"
           />
         </label>
+
+        <fieldset className="field">
+          <span>Visibilité de ma liste d&apos;abonnements</span>
+          <p className="profile-interests-hint muted">
+            Qui peut voir les comptes que vous suivez sur votre profil public.
+          </p>
+          <div className="profile-visibility-options">
+            <label className="visibility-option">
+              <input
+                type="radio"
+                name="followingVisibility"
+                value="public"
+                checked={followingListVisibility === "public"}
+                onChange={() => setFollowingListVisibility("public")}
+              />
+              <span>Publique</span>
+            </label>
+            <label className="visibility-option">
+              <input
+                type="radio"
+                name="followingVisibility"
+                value="private"
+                checked={followingListVisibility === "private"}
+                onChange={() => setFollowingListVisibility("private")}
+              />
+              <span>Privée</span>
+            </label>
+          </div>
+        </fieldset>
 
         <fieldset className="field profile-interests-field">
           <span>Centres d&apos;intérêt</span>

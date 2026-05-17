@@ -50,6 +50,7 @@ Dans le SQL Editor Supabase (ou via CLI), exécuter les migrations dans `supabas
 1. `00001_initial_schema.sql` (tables de base)
 2. `00003_user_profiles.sql` (**obligatoire pour les profils et intérêts**)
 3. `00004_more_interests.sql` (optionnel — ~30 intérêts supplémentaires)
+4. `00005_follows_notifications.sql` (**abonnements + notifications**)
 
 **Profils / intérêts** — si vous voyez `Could not find the table 'public.interests'` :
 
