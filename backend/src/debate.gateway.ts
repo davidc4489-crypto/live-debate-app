@@ -16,6 +16,7 @@ import {
   JoinRoomPayload,
   SendMessagePayload,
 } from "./dto/events";
+import { AuthService } from "./auth/auth.service";
 import { RoomsService } from "./rooms.service";
 
 @WebSocketGateway({
@@ -27,7 +28,10 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
 
   private turnInterval: NodeJS.Timeout;
 
-  constructor(private readonly roomsService: RoomsService) {
+  constructor(
+    private readonly roomsService: RoomsService,
+    private readonly authService: AuthService,
+  ) {
     this.turnInterval = setInterval(() => {
       const changedRoomIds = this.roomsService.tickTurns();
 
@@ -87,7 +91,27 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   }
 
   @SubscribeMessage("createRoom")
-  createRoom(@MessageBody() payload: CreateRoomPayload, @ConnectedSocket() client: Socket) {
+  async createRoom(
+    @MessageBody() payload: CreateRoomPayload,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const accessToken = payload?.accessToken?.trim();
+    if (!accessToken) {
+      client.emit("errorMessage", {
+        message: "Vous devez être connecté pour créer un débat.",
+      });
+      return;
+    }
+
+    try {
+      await this.authService.getMe(accessToken);
+    } catch {
+      client.emit("errorMessage", {
+        message: "Session invalide ou expirée. Reconnectez-vous.",
+      });
+      return;
+    }
+
     const title = payload?.title?.trim();
     if (!title) {
       client.emit("errorMessage", { message: "Le titre de la room est requis." });

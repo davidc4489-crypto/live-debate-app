@@ -2,6 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { v4 as uuidv4 } from "uuid";
 import { DebateMessage, RoomState, SocketSession, UserRole } from "./types";
 
+export const MAX_MESSAGE_LENGTH = 500;
+
 @Injectable()
 export class RoomsService {
   private readonly rooms: Record<string, RoomState> = {};
@@ -78,6 +80,13 @@ export class RoomsService {
     const cleaned = text.trim();
     if (!cleaned) {
       return { message: null, error: "Le message ne peut pas etre vide." };
+    }
+
+    if (cleaned.length > MAX_MESSAGE_LENGTH) {
+      return {
+        message: null,
+        error: `Le message ne peut pas depasser ${MAX_MESSAGE_LENGTH} caracteres.`,
+      };
     }
 
     const room = this.rooms[session.roomId];

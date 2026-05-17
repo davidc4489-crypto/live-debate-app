@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getStoredAuth } from "@/lib/auth";
+import { useAuthSession } from "@/lib/useAuthSession";
 import { getSocket } from "@/lib/socket";
+import { AuthModal, AuthModalMode } from "./AuthModal";
 
 interface CreatedRoomPayload {
   id: string;
@@ -12,6 +15,9 @@ interface CreatedRoomPayload {
 
 export function CreateDebateClient() {
   const router = useRouter();
+  const { user, loading: authLoading, refresh } = useAuthSession();
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthModalMode>("signin");
   const [title, setTitle] = useState("");
   const [roomId, setRoomId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,6 +76,13 @@ export function CreateDebateClient() {
     event.preventDefault();
     setError("");
 
+    const accessToken = getStoredAuth()?.session.accessToken;
+    if (!accessToken) {
+      setError("Vous devez être connecté pour créer un débat.");
+      setAuthOpen(true);
+      return;
+    }
+
     if (!title.trim()) {
       setError("Le titre du debat est requis.");
       return;
@@ -85,6 +98,7 @@ export function CreateDebateClient() {
       title: title.trim(),
       roomId: roomId.trim() || undefined,
       turnDuration,
+      accessToken,
     });
   }
 
@@ -96,43 +110,76 @@ export function CreateDebateClient() {
 
       <section className="card create-debate-card reveal">
         <h1>Creer un nouveau debat</h1>
-        <p className="muted">Donnez un titre, puis lancez la room en direct.</p>
 
-        <form className="create-form" onSubmit={handleCreate}>
-          <label htmlFor="debate-title">Titre du debat</label>
-          <input
-            id="debate-title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Ex: L'IA doit-elle etre strictement regulee ?"
-          />
+        {authLoading ? (
+          <p className="muted">Verification de la session…</p>
+        ) : !user ? (
+          <>
+            <p className="muted">
+              Connectez-vous pour lancer un débat en direct.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setAuthMode("signin");
+                setAuthOpen(true);
+              }}
+            >
+              Se connecter
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="muted">Donnez un titre, puis lancez la room en direct.</p>
 
-          <label htmlFor="room-id">ID room (optionnel)</label>
-          <input
-            id="room-id"
-            value={roomId}
-            onChange={(event) => setRoomId(event.target.value)}
-            placeholder="Ex: debat-ia-001"
-          />
+            <form className="create-form" onSubmit={handleCreate}>
+              <label htmlFor="debate-title">Titre du debat</label>
+              <input
+                id="debate-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Ex: L'IA doit-elle etre strictement regulee ?"
+              />
 
-          <label htmlFor="turn-duration">Duree de tour</label>
-          <select
-            id="turn-duration"
-            value={turnDuration}
-            onChange={(event) => setTurnDuration(Number(event.target.value) as 180 | 300 | 600)}
-          >
-            <option value={180}>3 minutes</option>
-            <option value={300}>5 minutes</option>
-            <option value={600}>10 minutes</option>
-          </select>
+              <label htmlFor="room-id">ID room (optionnel)</label>
+              <input
+                id="room-id"
+                value={roomId}
+                onChange={(event) => setRoomId(event.target.value)}
+                placeholder="Ex: debat-ia-001"
+              />
 
-          {error ? <p className="muted">{error}</p> : null}
+              <label htmlFor="turn-duration">Duree de tour</label>
+              <select
+                id="turn-duration"
+                value={turnDuration}
+                onChange={(event) =>
+                  setTurnDuration(Number(event.target.value) as 180 | 300 | 600)
+                }
+              >
+                <option value={180}>3 minutes</option>
+                <option value={300}>5 minutes</option>
+                <option value={600}>10 minutes</option>
+              </select>
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Creation..." : "Creer le debat"}
-          </button>
-        </form>
+              {error ? <p className="muted">{error}</p> : null}
+
+              <button type="submit" disabled={loading}>
+                {loading ? "Creation..." : "Creer le debat"}
+              </button>
+            </form>
+          </>
+        )}
       </section>
+
+      <AuthModal
+        open={authOpen}
+        mode={authMode}
+        onClose={() => setAuthOpen(false)}
+        onSuccess={() => void refresh()}
+        onSwitchMode={setAuthMode}
+      />
     </div>
   );
 }

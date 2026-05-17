@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { MAX_MESSAGE_LENGTH } from "@/lib/constants";
 import { getSocket } from "@/lib/socket";
 import { RoomSnapshot, UserRole } from "@/lib/types";
 
@@ -97,6 +98,10 @@ export function DebateRoomClient({ roomId }: DebateRoomClientProps) {
     if (!canSend) return;
     const text = draft.trim();
     if (!text) return;
+    if (text.length > MAX_MESSAGE_LENGTH) {
+      setError(`Le message ne peut pas dépasser ${MAX_MESSAGE_LENGTH} caractères.`);
+      return;
+    }
     getSocket().emit("sendMessage", { roomId, text });
     setDraft("");
   }
@@ -157,13 +162,24 @@ export function DebateRoomClient({ roomId }: DebateRoomClientProps) {
 
       <section className="chat-input-wrap card">
         <form onSubmit={submitMessage} className="chat-form">
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={role === "spectator" ? "Mode lecture seule" : "Écrivez votre argument..."}
-            disabled={!canSend}
-          />
-          <button type="submit" disabled={!canSend}>
+          <div className="chat-input-field">
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value.slice(0, MAX_MESSAGE_LENGTH))}
+              placeholder={role === "spectator" ? "Mode lecture seule" : "Écrivez votre argument..."}
+              disabled={!canSend}
+              maxLength={MAX_MESSAGE_LENGTH}
+            />
+            {canSend ? (
+              <span
+                className={`chat-char-count ${draft.length >= MAX_MESSAGE_LENGTH ? "at-limit" : ""}`}
+                aria-live="polite"
+              >
+                {draft.length}/{MAX_MESSAGE_LENGTH}
+              </span>
+            ) : null}
+          </div>
+          <button type="submit" disabled={!canSend || !draft.trim()}>
             Envoyer
           </button>
         </form>

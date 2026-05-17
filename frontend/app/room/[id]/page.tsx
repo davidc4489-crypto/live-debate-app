@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DebateRoomClient } from "@/components/DebateRoomClient";
+import { DebateRoomEntry } from "@/components/DebateRoomEntry";
 
 interface RoomPageProps {
   params: { id: string };
@@ -11,7 +11,7 @@ export default function RoomPage({ params }: RoomPageProps) {
       <Link href="/" className="btn btn-ghost room-back">
         Retour à l'accueil
       </Link>
-      <DebateRoomClient roomId={params.id} />
+      <DebateRoomEntry roomId={params.id} />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { MockDebate } from "@/mock/debates";
+import { DebateListItem, formatDebateDate, getDebateCtaLabel } from "@/lib/debate";
 
 interface DebateCardProps {
-  debate: MockDebate;
+  debate: DebateListItem;
   trending?: boolean;
 }
 
@@ -21,6 +21,7 @@ export function DebateCard({ debate, trending = false }: DebateCardProps) {
       <div className="card-topline">
         <span className="theme-badge">{debate.theme}</span>
         {debate.isLive ? <span className="live-badge">LIVE</span> : null}
+        {debate.status === "finished" ? <span className="finished-badge">Terminé</span> : null}
         {trending ? <span className="trend-badge">🔥 Trending</span> : null}
       </div>
 
@@ -37,15 +38,18 @@ export function DebateCard({ debate, trending = false }: DebateCardProps) {
 
       <div className="meta-row">
         <span>{debate.messagesCount} messages</span>
-        <span>{debate.createdAt}</span>
+        <span>{formatDebateDate(debate.createdAt)}</span>
       </div>
       <div className="meta-row">
         <span>{debate.views} vues</span>
         <span>{debate.spectators} spectateurs</span>
       </div>
 
-      <Link href={`/room/${debate.id}`} className="btn btn-primary">
-        Rejoindre
+      <Link
+        href={`/room/${debate.id}`}
+        className={`btn ${debate.status === "finished" ? "btn-ghost" : "btn-primary"}`}
+      >
+        {getDebateCtaLabel(debate.status)}
       </Link>
     </article>
   );

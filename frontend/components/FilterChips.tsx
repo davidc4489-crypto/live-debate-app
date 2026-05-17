@@ -1,6 +1,6 @@
 "use client";
 
-import { DebateTheme } from "@/mock/debates";
+import { DebateTheme } from "@/lib/debate";
 
 interface FilterChipsProps {
   themes: DebateTheme[];

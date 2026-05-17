@@ -2,6 +2,7 @@ export interface CreateRoomPayload {
   title: string;
   roomId?: string;
   turnDuration?: 180 | 300 | 600;
+  accessToken?: string;
 }
 
 export interface JoinRoomPayload {

@@ -43,7 +43,20 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
 
 ## Lancer en local
 
-### 1) Démarrer le backend
+### 1) Appliquer le schéma Supabase
+
+Dans le SQL Editor Supabase (ou via CLI), exécuter les migrations dans `supabase/migrations/` (au minimum `00001_initial_schema.sql`).
+
+### 2) Seed des débats d'exemple
+
+```bash
+cd backend
+npm run seed
+```
+
+Crée **2 débats** avec **10 messages** chacun en base (nécessite `SUPABASE_SERVICE_ROLE_KEY` dans `backend/.env`).
+
+### 3) Démarrer le backend
 
 ```bash
 cd backend
@@ -53,7 +66,7 @@ npm run start:dev
 
 Backend disponible sur `http://localhost:3001`.
 
-### 2) Démarrer le frontend
+### 4) Démarrer le frontend
 
 ```bash
 cd frontend

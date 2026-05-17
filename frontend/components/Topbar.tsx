@@ -1,41 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import {
-  AuthUser,
-  fetchMe,
-  getDisplayName,
-  getStoredAuth,
-  signOut,
-} from "../lib/auth";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { getDisplayName, signOut } from "../lib/auth";
+import { useAuthSession } from "../lib/useAuthSession";
 import { AuthModal, AuthModalMode } from "./AuthModal";
 
 export function Topbar() {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const router = useRouter();
+  const { user, loading: loadingSession, refresh: refreshUser } = useAuthSession();
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthModalMode>("signin");
-  const [loadingSession, setLoadingSession] = useState(true);
+  const [pendingCreate, setPendingCreate] = useState(false);
 
-  const refreshUser = useCallback(async () => {
-    const stored = getStoredAuth();
-    if (!stored) {
-      setUser(null);
+  function handleCreateDebateClick() {
+    if (user) {
+      router.push("/room/new");
       return;
     }
-
-    const me = await fetchMe();
-    setUser(me);
-  }, []);
-
-  useEffect(() => {
-    const stored = getStoredAuth();
-    if (stored) {
-      setUser(stored.user);
-      void refreshUser();
-    }
-    setLoadingSession(false);
-  }, [refreshUser]);
+    setPendingCreate(true);
+    setAuthMode("signin");
+    setAuthOpen(true);
+  }
 
   function openAuth(mode: AuthModalMode) {
     setAuthMode(mode);
@@ -44,7 +31,7 @@ export function Topbar() {
 
   async function handleSignOut() {
     await signOut();
-    setUser(null);
+    await refreshUser();
   }
 
   return (
@@ -88,9 +75,13 @@ export function Topbar() {
                 </button>
               </>
             )}
-            <Link href="/room/new" className="btn btn-primary nav-cta">
+            <button
+              type="button"
+              className="btn btn-primary nav-cta"
+              onClick={handleCreateDebateClick}
+            >
               Créer débat
-            </Link>
+            </button>
           </div>
         </div>
       </header>
@@ -98,8 +89,18 @@ export function Topbar() {
       <AuthModal
         open={authOpen}
         mode={authMode}
-        onClose={() => setAuthOpen(false)}
-        onSuccess={() => void refreshUser()}
+        onClose={() => {
+          setAuthOpen(false);
+          setPendingCreate(false);
+        }}
+        onSuccess={() => {
+          void refreshUser().then(() => {
+            if (pendingCreate) {
+              setPendingCreate(false);
+              router.push("/room/new");
+            }
+          });
+        }}
         onSwitchMode={setAuthMode}
       />
     </>
