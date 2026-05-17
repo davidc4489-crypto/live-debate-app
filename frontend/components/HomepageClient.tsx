@@ -173,11 +173,11 @@ export function HomepageClient() {
     <div className="home-root">
       <section className="hero reveal">
         <div className="hero-card">
-          <p className="kicker">Plateforme de débats live entre utilisateurs</p>
-          <h1>Débattez en temps réel. Sans bruit. Sans filtre.</h1>
+          <p className="kicker">Débats posés · tours de parole · conclusions</p>
+          <h1>Des échanges structurés, pour penser avant de répondre.</h1>
           <p className="hero-subtitle">
-            Rejoignez des débats structurés, suivez les échanges en direct et participez sur les sujets qui
-            comptent vraiment.
+            Une plateforme sobre dédiée à la qualité du débat : tours de parole, modération attentive et
+            synthèses de fin d&apos;échange. Pas de bruit, pas de course au clash.
           </p>
           <div className="hero-cta">
             <a href="#latest" className="btn btn-primary">

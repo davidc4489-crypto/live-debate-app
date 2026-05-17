@@ -32,7 +32,7 @@ export function DebateCard({
           <span className="theme-badge">{debate.theme}</span>
           {debate.isLive ? <span className="live-badge">LIVE</span> : null}
           {debate.status === "finished" ? <span className="finished-badge">Terminé</span> : null}
-          {trending ? <span className="trend-badge">🔥 Trending</span> : null}
+          {trending ? <span className="trend-badge">À la une</span> : null}
         </div>
         {showFavorite && onFavoriteToggle ? (
           <FavoriteButton

@@ -169,7 +169,7 @@ export function NotebookClient() {
           ) : null}
         </div>
         {notes.length === 0 ? (
-          <p className="muted">Aucune note pour le moment.</p>
+          <p className="muted notebook-empty">Aucune note pour le moment.</p>
         ) : (
           <div className="notebook-grid">
             {notes.map((note) => (

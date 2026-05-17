@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ParticipantPill } from "@/components/ParticipantPill";
 import { DebateConclusionsSection } from "@/components/DebateConclusionsSection";
+import { DebateProgress } from "@/components/ui/DebateProgress";
+import { DebateThread } from "@/components/ui/DebateThread";
 import { DebateDetail, formatDebateDate } from "@/lib/debate";
 import { addFavorite, fetchFavoriteIds, removeFavorite } from "@/lib/favorites-api";
 import { useAuthSession } from "@/lib/useAuthSession";
@@ -93,6 +95,12 @@ export function DebateReplayClient({ debate }: DebateReplayClientProps) {
               : "Relecture de l'échange entre les deux participants"}
           </p>
 
+          <DebateProgress
+            messageCount={debate.messages.length}
+            status="finished"
+            participantCount={2}
+          />
+
           <div className="participants debate-replay-participants">
             {debate.participants.map((participant) => (
               <ParticipantPill
@@ -105,29 +113,25 @@ export function DebateReplayClient({ debate }: DebateReplayClientProps) {
       </section>
 
       <section className="chat-stream card">
-        {debate.messages.length === 0 ? (
-          <p className="muted">Aucun message enregistré pour ce débat.</p>
-        ) : (
-          <div className="chat-messages">
-            {debate.messages.map((message) => (
-              <article className="chat-bubble" key={message.id}>
-                <div className="bubble-head">
-                  <strong>{message.author}</strong>
-                  {user ? (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm notebook-inline-btn"
-                      onClick={() => openNoteForMessage(message.id)}
-                    >
-                      Noter
-                    </button>
-                  ) : null}
-                </div>
-                <p>{message.text}</p>
-              </article>
-            ))}
-          </div>
-        )}
+        <DebateThread
+          messages={debate.messages.map((message) => ({
+            id: message.id,
+            author: message.author,
+            text: message.text,
+          }))}
+          emptyLabel="Aucun message enregistré pour ce débat."
+          renderHeaderAction={(message) =>
+            user ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => openNoteForMessage(message.id)}
+              >
+                Noter
+              </button>
+            ) : null
+          }
+        />
       </section>
 
       <DebateConclusionsSection conclusions={debate.conclusions ?? []} />

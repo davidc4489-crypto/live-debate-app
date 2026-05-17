@@ -7,7 +7,7 @@ interface RoomPageProps {
 
 export default function RoomPage({ params }: RoomPageProps) {
   return (
-    <div className="stack">
+    <div className="page-narrow stack">
       <Link href="/" className="btn btn-ghost room-back">
         Retour à l'accueil
       </Link>

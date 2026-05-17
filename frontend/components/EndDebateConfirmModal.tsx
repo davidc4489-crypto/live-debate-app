@@ -18,7 +18,7 @@ export function EndDebateConfirmModal({
   return (
     <div className="auth-overlay" onClick={onCancel} role="presentation">
       <div
-        className="card auth-modal end-debate-modal"
+        className="auth-modal end-debate-modal"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-labelledby="end-debate-title"

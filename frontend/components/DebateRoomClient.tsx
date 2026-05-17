@@ -6,6 +6,8 @@ import { DebateConclusionsSection } from "@/components/DebateConclusionsSection"
 import { DebateNoteSection } from "@/components/DebateNoteSection";
 import { EndDebateConfirmModal } from "@/components/EndDebateConfirmModal";
 import { ParticipantPill } from "@/components/ParticipantPill";
+import { DebateProgress } from "@/components/ui/DebateProgress";
+import { DebateThread } from "@/components/ui/DebateThread";
 import { getStoredAuth } from "@/lib/auth";
 import { MAX_MESSAGE_LENGTH } from "@/lib/constants";
 import { DebateDetail } from "@/lib/debate";
@@ -238,8 +240,14 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     <div className="chat-layout reveal">
       <section className="chat-header card">
         <div>
+          <div className="debate-header-meta">
+            {dbDebate?.theme ? <span className="theme-badge">{dbDebate.theme}</span> : null}
+            {isFinished ? <span className="finished-badge">Débat terminé</span> : null}
+            {!isFinished && (room?.participants ?? 0) >= 2 ? (
+              <span className="live-badge">En direct</span>
+            ) : null}
+          </div>
           <h2>{room?.title || dbDebate?.title || `Room ${roomId}`}</h2>
-          {isFinished ? <span className="finished-badge">Débat terminé</span> : null}
           {dbDebate ? (
             <div className="participants debate-room-participants">
               {dbDebate.participants.map((participant) => (
@@ -251,8 +259,16 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
             </div>
           ) : null}
           <p className="muted">
-            Participants: {room?.participants ?? 0} | Spectateurs: {room?.spectators ?? 0}
+            {room?.participants ?? 0} participant{(room?.participants ?? 0) !== 1 ? "s" : ""}
+            {" · "}
+            {room?.spectators ?? 0} spectateur{(room?.spectators ?? 0) !== 1 ? "s" : ""}
           </p>
+          <DebateProgress
+            messageCount={room?.messages.length ?? 0}
+            status={isFinished ? "finished" : "active"}
+            participantCount={room?.participants ?? 0}
+            currentSpeakerName={room?.currentSpeakerName}
+          />
           {!isFinished && !waitingForOpponent ? (
             <div className={`turn-timer ${timerTone}`}>
               <span>Tour: {room?.currentSpeakerName || "En attente"}</span>
@@ -295,17 +311,14 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       ) : null}
 
       <section className="chat-stream card">
-        {room?.messages?.length ? null : <p className="muted">Aucun message.</p>}
-        <div className="chat-messages">
-          {room?.messages.map((message) => (
-            <article className={`chat-bubble ${message.user === displayName ? "self" : ""}`} key={message.id}>
-              <div className="bubble-head">
-                <strong>{message.user}</strong>
-              </div>
-              <p>{message.text}</p>
-            </article>
-          ))}
-        </div>
+        <DebateThread
+          messages={(room?.messages ?? []).map((m) => ({
+            id: m.id,
+            author: m.user,
+            text: m.text,
+          }))}
+          currentUserLabel={displayName}
+        />
       </section>
 
       {isFinished ? (
