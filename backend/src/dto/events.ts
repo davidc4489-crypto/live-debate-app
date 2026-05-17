@@ -13,6 +13,8 @@ export interface JoinRoomPayload {
 export interface SendMessagePayload {
   roomId: string;
   text: string;
+  /** Token émis après un avertissement modération (envoi malgré le warn). */
+  warnToken?: string;
 }
 
 export interface DeleteMessagePayload {

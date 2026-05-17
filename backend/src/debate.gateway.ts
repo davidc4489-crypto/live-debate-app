@@ -17,6 +17,8 @@ import {
   SendMessagePayload,
 } from "./dto/events";
 import { AuthService } from "./auth/auth.service";
+import { MessageFlagsService } from "./moderation/message-flags.service";
+import { ModerationService } from "./moderation/moderation.service";
 import { RoomsService } from "./rooms.service";
 
 @WebSocketGateway({
@@ -31,6 +33,8 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   constructor(
     private readonly roomsService: RoomsService,
     private readonly authService: AuthService,
+    private readonly moderationService: ModerationService,
+    private readonly messageFlagsService: MessageFlagsService,
   ) {
     this.turnInterval = setInterval(() => {
       const changedRoomIds = this.roomsService.tickTurns();
@@ -150,7 +154,10 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   }
 
   @SubscribeMessage("sendMessage")
-  sendMessage(@MessageBody() payload: SendMessagePayload, @ConnectedSocket() client: Socket) {
+  async sendMessage(
+    @MessageBody() payload: SendMessagePayload,
+    @ConnectedSocket() client: Socket,
+  ) {
     const session = this.roomsService.getSession(client.id);
     if (!session) {
       client.emit("errorMessage", { message: "Vous devez rejoindre une room." });
@@ -162,13 +169,58 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
       return;
     }
 
-    const result = this.roomsService.sendMessage(client.id, payload.text);
+    const text = payload?.text?.trim() ?? "";
+    if (!text) {
+      client.emit("errorMessage", { message: "Le message ne peut pas etre vide." });
+      return;
+    }
+
+    const warnAccepted = Boolean(
+      payload.warnToken &&
+        this.moderationService.consumeWarnToken(payload.warnToken, client.id, text),
+    );
+
+    let moderation = warnAccepted
+      ? null
+      : await this.moderationService.moderateText(text);
+
+    if (moderation?.action === "block") {
+      client.emit("errorMessage", {
+        message: this.moderationService.getBlockMessage(),
+        code: "MODERATION_BLOCK",
+      });
+      return;
+    }
+
+    if (moderation?.action === "warn") {
+      const warnToken = this.moderationService.issueWarnToken(client.id, text);
+      client.emit("moderationWarn", {
+        roomId: session.roomId,
+        text,
+        warnToken,
+        scores: {
+          toxicity: moderation.toxicity,
+          insult: moderation.insult,
+          threat: moderation.threat,
+          identity_hate: moderation.identity_hate,
+        },
+        message: this.moderationService.getWarnMessage(),
+      });
+      return;
+    }
+
+    const result = this.roomsService.sendMessage(client.id, text);
     if (!result.message) {
       client.emit("errorMessage", {
         message: result.error || "Message refuse.",
       });
       return;
     }
+
+    if (!moderation) {
+      moderation = await this.moderationService.moderateText(text);
+    }
+    void this.messageFlagsService.saveFlag(result.message.id, moderation);
 
     const snapshot = this.roomsService.getRoomSnapshot(session.roomId);
     const switchedRoom = this.roomsService.switchTurn(session.roomId);

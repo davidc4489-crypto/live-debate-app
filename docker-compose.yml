@@ -1,0 +1,31 @@
+services:
+  moderation:
+    build: ./moderation-service
+    ports:
+      - "8000:8000"
+    environment:
+      MOD_THRESHOLD_BLOCK: "0.75"
+      MOD_THRESHOLD_WARN: "0.50"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      MODERATION_SERVICE_URL: http://moderation:8000
+      MODERATION_TIMEOUT_MS: 300
+      MODERATION_FALLBACK_ON_DOWN: warn
+    env_file:
+      - ./backend/.env
+    depends_on:
+      moderation:
+        condition: service_healthy

@@ -8,7 +8,9 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
-    "seed": "node scripts/seed-debates.mjs"
+    "seed": "node scripts/seed-debates.mjs",
+    "test:moderation": "node scripts/test-moderation.mjs",
+    "test:moderation:live": "node scripts/test-moderation.mjs --live"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.8",

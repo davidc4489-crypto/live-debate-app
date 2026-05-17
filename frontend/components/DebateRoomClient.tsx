@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { DebateNoteSection } from "@/components/DebateNoteSection";
 import { MAX_MESSAGE_LENGTH } from "@/lib/constants";
 import { DebateDetail } from "@/lib/debate";
@@ -18,6 +18,13 @@ interface JoinedRoomPayload {
   displayName: string;
 }
 
+interface ModerationWarnPayload {
+  roomId: string;
+  text: string;
+  warnToken: string;
+  message: string;
+}
+
 export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
   const [room, setRoom] = useState<RoomSnapshot | null>(null);
   const [role, setRole] = useState<UserRole>("spectator");
@@ -25,7 +32,10 @@ export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
   const [draft, setDraft] = useState("");
   const [isModerator, setIsModerator] = useState(false);
   const [error, setError] = useState("");
+  const [errorIsBlock, setErrorIsBlock] = useState(false);
+  const [moderationWarn, setModerationWarn] = useState<ModerationWarnPayload | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const pendingTextRef = useRef<string | null>(null);
 
   useEffect(() => {
     const socket = getSocket();
@@ -36,12 +46,33 @@ export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
     };
 
     const onRoomUpdated = (snapshot: RoomSnapshot) => {
-      if (snapshot.id === roomId) {
-        setRoom(snapshot);
+      if (snapshot.id !== roomId) return;
+      setRoom(snapshot);
+      const pending = pendingTextRef.current;
+      if (!pending) return;
+      const accepted = snapshot.messages.some(
+        (message) => message.user === displayName && message.text === pending,
+      );
+      if (accepted) {
+        pendingTextRef.current = null;
+        setDraft("");
+        setModerationWarn(null);
       }
     };
 
-    const onError = (payload: { message: string }) => setError(payload.message);
+    const onError = (payload: { message: string; code?: string }) => {
+      setModerationWarn(null);
+      setError(payload.message);
+      setErrorIsBlock(payload.code === "MODERATION_BLOCK");
+    };
+
+    const onModerationWarn = (payload: ModerationWarnPayload) => {
+      if (payload.roomId !== roomId) return;
+      setError("");
+      setErrorIsBlock(false);
+      setModerationWarn(payload);
+      setDraft(payload.text);
+    };
     const onTick = (payload: { roomId: string; remainingSeconds: number }) => {
       if (payload.roomId === roomId) {
         setRemainingSeconds(payload.remainingSeconds);
@@ -51,6 +82,7 @@ export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
     socket.on("joinedRoom", onJoinedRoom);
     socket.on("roomUpdated", onRoomUpdated);
     socket.on("errorMessage", onError);
+    socket.on("moderationWarn", onModerationWarn);
     socket.on("tick", onTick);
 
     socket.emit("joinRoom", { roomId });
@@ -60,6 +92,7 @@ export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
       socket.off("joinedRoom", onJoinedRoom);
       socket.off("roomUpdated", onRoomUpdated);
       socket.off("errorMessage", onError);
+      socket.off("moderationWarn", onModerationWarn);
       socket.off("tick", onTick);
     };
   }, [roomId]);
@@ -95,9 +128,10 @@ export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
     return `${min}:${sec}`;
   }, [remainingSeconds]);
 
-  function submitMessage(event: FormEvent) {
+  function submitMessage(event: FormEvent, warnToken?: string) {
     event.preventDefault();
     setError("");
+    setErrorIsBlock(false);
     if (!canSend) return;
     const text = draft.trim();
     if (!text) return;
@@ -105,8 +139,21 @@ export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
       setError(`Le message ne peut pas dépasser ${MAX_MESSAGE_LENGTH} caractères.`);
       return;
     }
+    if (warnToken) {
+      pendingTextRef.current = text;
+      getSocket().emit("sendMessage", { roomId, text, warnToken });
+      return;
+    }
+    pendingTextRef.current = text;
     getSocket().emit("sendMessage", { roomId, text });
-    setDraft("");
+  }
+
+  function confirmWarnedMessage() {
+    if (!moderationWarn) return;
+    submitMessage(
+      { preventDefault: () => undefined } as FormEvent,
+      moderationWarn.warnToken,
+    );
   }
 
   function deleteMessage(messageId: string) {
@@ -142,7 +189,23 @@ export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
           </label>
         </div>
       </section>
-      {error ? <p className="muted">{error}</p> : null}
+      {error ? (
+        <p className={errorIsBlock ? "auth-error moderation-block-msg" : "muted"}>{error}</p>
+      ) : null}
+
+      {moderationWarn ? (
+        <section className="card moderation-warn-banner" role="alert">
+          <p>{moderationWarn.message}</p>
+          <div className="moderation-warn-actions">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModerationWarn(null)}>
+              Modifier
+            </button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={confirmWarnedMessage}>
+              Envoyer quand même
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="chat-stream card">
         {room?.messages?.length ? null : <p className="muted">Aucun message.</p>}

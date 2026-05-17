@@ -56,7 +56,20 @@ npm run seed
 
 Crée **2 débats** avec **10 messages** chacun en base (nécessite `SUPABASE_SERVICE_ROLE_KEY` dans `backend/.env`).
 
-### 3) Démarrer le backend
+### 3) Modération (optionnel mais recommandé)
+
+```bash
+cd moderation-service
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+Ajouter dans `backend/.env` : `MODERATION_SERVICE_URL=http://localhost:8000`
+
+Voir [docs/MODERATION.md](docs/MODERATION.md) pour l'architecture complète.
+
+### 4) Démarrer le backend
 
 ```bash
 cd backend
@@ -66,7 +79,7 @@ npm run start:dev
 
 Backend disponible sur `http://localhost:3001`.
 
-### 4) Démarrer le frontend
+### 5) Démarrer le frontend
 
 ```bash
 cd frontend
