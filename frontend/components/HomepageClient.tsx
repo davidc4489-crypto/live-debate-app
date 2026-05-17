@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthModal, AuthModalMode } from "@/components/AuthModal";
 import { DebateCard } from "@/components/DebateCard";
 import { FilterChips } from "@/components/FilterChips";
 import { SectionLayout } from "@/components/SectionLayout";
 import { DebateListItem, DebateTheme, debateThemes } from "@/lib/debate";
 import { fetchDebates } from "@/lib/debates-api";
+import { addFavorite, fetchFavorites, removeFavorite } from "@/lib/favorites-api";
 import { useAuthSession } from "@/lib/useAuthSession";
 
 type ThemeFilter = DebateTheme | "Tous";
@@ -20,8 +21,13 @@ export function HomepageClient() {
   const [pendingCreate, setPendingCreate] = useState(false);
   const [activeTheme, setActiveTheme] = useState<ThemeFilter>("Tous");
   const [debates, setDebates] = useState<DebateListItem[]>([]);
+  const [favoriteDebates, setFavoriteDebates] = useState<DebateListItem[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [favoriteLoadingId, setFavoriteLoadingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [error, setError] = useState("");
+  const [favoritesError, setFavoritesError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +53,82 @@ export function HomepageClient() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user) {
+      setFavoriteDebates([]);
+      setFavoriteIds(new Set());
+      setFavoritesError("");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadFavorites() {
+      setFavoritesLoading(true);
+      setFavoritesError("");
+      try {
+        const data = await fetchFavorites();
+        if (!cancelled) {
+          setFavoriteDebates(data);
+          setFavoriteIds(new Set(data.map((debate) => debate.id)));
+        }
+      } catch {
+        if (!cancelled) {
+          setFavoritesError("Impossible de charger vos débats favoris.");
+        }
+      } finally {
+        if (!cancelled) setFavoritesLoading(false);
+      }
+    }
+
+    void loadFavorites();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const handleFavoriteToggle = useCallback(
+    async (debateId: string, nextFavorite: boolean) => {
+      if (!user) return;
+
+      setFavoriteLoadingId(debateId);
+      setFavoritesError("");
+
+      const previousIds = favoriteIds;
+      const previousDebates = favoriteDebates;
+
+      if (nextFavorite) {
+        const debate = debates.find((item) => item.id === debateId);
+        setFavoriteIds((current) => new Set([...current, debateId]));
+        if (debate) {
+          setFavoriteDebates((current) => [debate, ...current.filter((item) => item.id !== debateId)]);
+        }
+      } else {
+        setFavoriteIds((current) => {
+          const next = new Set(current);
+          next.delete(debateId);
+          return next;
+        });
+        setFavoriteDebates((current) => current.filter((item) => item.id !== debateId));
+      }
+
+      try {
+        if (nextFavorite) {
+          await addFavorite(debateId);
+        } else {
+          await removeFavorite(debateId);
+        }
+      } catch {
+        setFavoriteIds(previousIds);
+        setFavoriteDebates(previousDebates);
+        setFavoritesError("Impossible de mettre à jour vos favoris.");
+      } finally {
+        setFavoriteLoadingId(null);
+      }
+    },
+    [user, favoriteIds, favoriteDebates, debates],
+  );
+
   function handleCreateDebateClick() {
     if (user) {
       router.push("/room/new");
@@ -62,11 +144,30 @@ export function HomepageClient() {
     return debates.filter((debate) => debate.theme === activeTheme);
   }, [activeTheme, debates]);
 
+  const filteredFavorites = useMemo(() => {
+    if (activeTheme === "Tous") return favoriteDebates;
+    return favoriteDebates.filter((debate) => debate.theme === activeTheme);
+  }, [activeTheme, favoriteDebates]);
+
   const latestDebates = filteredDebates;
   const trendingDebates = [...filteredDebates]
     .sort((a, b) => b.views - a.views)
     .slice(0, 6);
   const continueWatching = filteredDebates.filter((debate) => debate.messagesCount >= 10);
+
+  function renderDebateCard(debate: DebateListItem, trending = false) {
+    return (
+      <DebateCard
+        key={debate.id}
+        debate={debate}
+        trending={trending}
+        showFavorite={Boolean(user)}
+        isFavorite={favoriteIds.has(debate.id)}
+        favoriteLoading={favoriteLoadingId === debate.id}
+        onFavoriteToggle={handleFavoriteToggle}
+      />
+    );
+  }
 
   return (
     <div className="home-root">
@@ -106,12 +207,31 @@ export function HomepageClient() {
         </SectionLayout>
       ) : (
         <>
+          {user ? (
+            <SectionLayout
+              title="Mes débats favoris"
+              subtitle="Retrouvez les débats que vous avez enregistrés pour les revoir plus tard."
+            >
+              {favoritesLoading ? (
+                <div className="empty-state">Chargement de vos favoris…</div>
+              ) : favoritesError ? (
+                <div className="empty-state">{favoritesError}</div>
+              ) : filteredFavorites.length > 0 ? (
+                <div className="debate-grid">
+                  {filteredFavorites.map((debate) => renderDebateCard(debate))}
+                </div>
+              ) : (
+                <div id="favorites" className="empty-state">
+                  Aucun favori pour le moment. Cliquez sur l&apos;étoile d&apos;un débat pour l&apos;ajouter ici.
+                </div>
+              )}
+            </SectionLayout>
+          ) : null}
+
           <SectionLayout title="Continue watching" subtitle="Reprenez les debats les plus actifs de votre fil.">
             {continueWatching.length > 0 ? (
               <div className="debate-grid">
-                {continueWatching.map((debate) => (
-                  <DebateCard key={debate.id} debate={debate} />
-                ))}
+                {continueWatching.map((debate) => renderDebateCard(debate))}
               </div>
             ) : (
               <div className="empty-state">Aucun debat actif pour ce theme. Essayez un autre filtre.</div>
@@ -121,9 +241,7 @@ export function HomepageClient() {
           <SectionLayout title="Derniers débats" subtitle="Les discussions les plus récentes, prêtes à rejoindre.">
             {latestDebates.length > 0 ? (
               <div id="latest" className="debate-grid">
-                {latestDebates.map((debate) => (
-                  <DebateCard key={debate.id} debate={debate} />
-                ))}
+                {latestDebates.map((debate) => renderDebateCard(debate))}
               </div>
             ) : (
               <div id="latest" className="empty-state">
@@ -135,9 +253,7 @@ export function HomepageClient() {
           <SectionLayout title="Débats les plus populaires" subtitle="Classement basé sur le nombre de vues.">
             {trendingDebates.length > 0 ? (
               <div className="debate-grid">
-                {trendingDebates.map((debate) => (
-                  <DebateCard key={debate.id} debate={debate} trending />
-                ))}
+                {trendingDebates.map((debate) => renderDebateCard(debate, true))}
               </div>
             ) : (
               <div className="empty-state">Aucun débat populaire pour ce filtre actuellement.</div>

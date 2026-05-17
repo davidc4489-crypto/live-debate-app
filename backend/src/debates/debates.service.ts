@@ -21,7 +21,7 @@ interface MessageRow {
   profiles: ProfileRow | ProfileRow[] | null;
 }
 
-interface DebateRow {
+export interface DebateRow {
   id: string;
   title: string;
   status: string;
@@ -73,7 +73,11 @@ export class DebatesService {
       throw new Error(`Impossible de charger les débats : ${error.message}`);
     }
 
-    return (data as DebateRow[]).map((debate) => this.toListItem(debate));
+    return this.rowsToListItems(data as DebateRow[]);
+  }
+
+  rowsToListItems(rows: DebateRow[]): DebateListItemDto[] {
+    return rows.map((debate) => this.toListItem(debate));
   }
 
   async getDebateById(id: string): Promise<DebateDetailDto> {

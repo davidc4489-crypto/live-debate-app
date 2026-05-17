@@ -7,5 +7,6 @@ import { DebatesService } from "./debates.service";
   imports: [SupabaseModule],
   controllers: [DebatesController],
   providers: [DebatesService],
+  exports: [DebatesService],
 })
 export class DebatesModule {}

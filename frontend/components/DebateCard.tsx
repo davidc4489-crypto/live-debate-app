@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { DebateListItem, formatDebateDate, getDebateCtaLabel } from "@/lib/debate";
 
 interface DebateCardProps {
   debate: DebateListItem;
   trending?: boolean;
+  isFavorite?: boolean;
+  showFavorite?: boolean;
+  favoriteLoading?: boolean;
+  onFavoriteToggle?: (debateId: string, nextFavorite: boolean) => void;
 }
 
 function initials(name: string) {
@@ -15,14 +20,30 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-export function DebateCard({ debate, trending = false }: DebateCardProps) {
+export function DebateCard({
+  debate,
+  trending = false,
+  isFavorite = false,
+  showFavorite = false,
+  favoriteLoading = false,
+  onFavoriteToggle,
+}: DebateCardProps) {
   return (
     <article className={`debate-card reveal ${trending ? "trending" : ""}`}>
       <div className="card-topline">
-        <span className="theme-badge">{debate.theme}</span>
-        {debate.isLive ? <span className="live-badge">LIVE</span> : null}
-        {debate.status === "finished" ? <span className="finished-badge">Terminé</span> : null}
-        {trending ? <span className="trend-badge">🔥 Trending</span> : null}
+        <div className="card-topline-badges">
+          <span className="theme-badge">{debate.theme}</span>
+          {debate.isLive ? <span className="live-badge">LIVE</span> : null}
+          {debate.status === "finished" ? <span className="finished-badge">Terminé</span> : null}
+          {trending ? <span className="trend-badge">🔥 Trending</span> : null}
+        </div>
+        {showFavorite && onFavoriteToggle ? (
+          <FavoriteButton
+            isFavorite={isFavorite}
+            disabled={favoriteLoading}
+            onClick={() => onFavoriteToggle(debate.id, !isFavorite)}
+          />
+        ) : null}
       </div>
 
       <h3>{debate.title}</h3>

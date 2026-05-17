@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { DebateDetail, formatDebateDate } from "@/lib/debate";
+import { addFavorite, fetchFavoriteIds, removeFavorite } from "@/lib/favorites-api";
 import { useAuthSession } from "@/lib/useAuthSession";
 import { DebateNoteSection } from "./DebateNoteSection";
 
@@ -22,6 +24,51 @@ export function DebateReplayClient({ debate }: DebateReplayClientProps) {
   const { user } = useAuthSession();
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteMessageId, setNoteMessageId] = useState("");
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setIsFavorite(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadFavoriteState() {
+      try {
+        const ids = await fetchFavoriteIds();
+        if (!cancelled) setIsFavorite(ids.includes(debate.id));
+      } catch {
+        if (!cancelled) setIsFavorite(false);
+      }
+    }
+
+    void loadFavoriteState();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, debate.id]);
+
+  async function handleFavoriteToggle() {
+    if (!user) return;
+
+    const nextFavorite = !isFavorite;
+    setFavoriteLoading(true);
+    setIsFavorite(nextFavorite);
+
+    try {
+      if (nextFavorite) {
+        await addFavorite(debate.id);
+      } else {
+        await removeFavorite(debate.id);
+      }
+    } catch {
+      setIsFavorite(!nextFavorite);
+    } finally {
+      setFavoriteLoading(false);
+    }
+  }
 
   function openNoteForMessage(messageId: string) {
     setNoteMessageId(messageId);
@@ -34,8 +81,17 @@ export function DebateReplayClient({ debate }: DebateReplayClientProps) {
       <section className="chat-header card debate-replay-header">
         <div>
           <div className="card-topline">
-            <span className="theme-badge">{debate.theme}</span>
-            <span className="finished-badge">Débat terminé</span>
+            <div className="card-topline-badges">
+              <span className="theme-badge">{debate.theme}</span>
+              <span className="finished-badge">Débat terminé</span>
+            </div>
+            {user ? (
+              <FavoriteButton
+                isFavorite={isFavorite}
+                disabled={favoriteLoading}
+                onClick={() => void handleFavoriteToggle()}
+              />
+            ) : null}
           </div>
           <h2>{debate.title}</h2>
           <p className="muted debate-replay-subtitle">
