@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { DebateDetail, formatDebateDate } from "@/lib/debate";
+import { useAuthSession } from "@/lib/useAuthSession";
+import { DebateNoteSection } from "./DebateNoteSection";
 
 interface DebateReplayClientProps {
   debate: DebateDetail;
@@ -16,6 +19,16 @@ function initials(name: string) {
 }
 
 export function DebateReplayClient({ debate }: DebateReplayClientProps) {
+  const { user } = useAuthSession();
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteMessageId, setNoteMessageId] = useState("");
+
+  function openNoteForMessage(messageId: string) {
+    setNoteMessageId(messageId);
+    setNoteOpen(true);
+    document.getElementById("debate-note-section")?.scrollIntoView({ behavior: "smooth" });
+  }
+
   return (
     <div className="chat-layout reveal">
       <section className="chat-header card debate-replay-header">
@@ -51,6 +64,15 @@ export function DebateReplayClient({ debate }: DebateReplayClientProps) {
               <article className="chat-bubble" key={message.id}>
                 <div className="bubble-head">
                   <strong>{message.author}</strong>
+                  {user ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm notebook-inline-btn"
+                      onClick={() => openNoteForMessage(message.id)}
+                    >
+                      Noter
+                    </button>
+                  ) : null}
                 </div>
                 <p>{message.text}</p>
               </article>
@@ -58,6 +80,18 @@ export function DebateReplayClient({ debate }: DebateReplayClientProps) {
           </div>
         )}
       </section>
+
+      <DebateNoteSection
+        debateId={debate.id}
+        debateTitle={debate.title}
+        messages={debate.messages}
+        open={noteOpen}
+        prefillMessageId={noteMessageId}
+        onOpenChange={(open) => {
+          setNoteOpen(open);
+          if (!open) setNoteMessageId("");
+        }}
+      />
 
       <section className="card debate-replay-footer">
         <p className="muted">Ce débat est terminé. La relecture est en lecture seule.</p>

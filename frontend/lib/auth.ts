@@ -43,6 +43,17 @@ export function clearAuth(): void {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+export function getAuthHeaders(): Record<string, string> {
+  const stored = getStoredAuth();
+  if (!stored?.session.accessToken) {
+    return {};
+  }
+  return {
+    Authorization: `Bearer ${stored.session.accessToken}`,
+    "Content-Type": "application/json",
+  };
+}
+
 export function getDisplayName(user: AuthUser): string {
   const full = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
   return full || user.email.split("@")[0];

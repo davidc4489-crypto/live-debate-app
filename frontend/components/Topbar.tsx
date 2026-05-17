@@ -51,12 +51,17 @@ export function Topbar() {
             {loadingSession ? (
               <span className="auth-placeholder" aria-hidden />
             ) : user ? (
-              <div className="auth-user-menu">
-                <span className="auth-user-name">{getDisplayName(user)}</span>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={handleSignOut}>
-                  Déconnexion
-                </button>
-              </div>
+              <>
+                <Link href="/notebook" className="btn btn-ghost btn-sm">
+                  Notebook
+                </Link>
+                <div className="auth-user-menu">
+                  <span className="auth-user-name">{getDisplayName(user)}</span>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={handleSignOut}>
+                    Déconnexion
+                  </button>
+                </div>
+              </>
             ) : (
               <>
                 <button

@@ -1,12 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { DebateNoteSection } from "@/components/DebateNoteSection";
 import { MAX_MESSAGE_LENGTH } from "@/lib/constants";
+import { DebateDetail } from "@/lib/debate";
 import { getSocket } from "@/lib/socket";
 import { RoomSnapshot, UserRole } from "@/lib/types";
 
 interface DebateRoomClientProps {
   roomId: string;
+  dbDebate?: DebateDetail | null;
 }
 
 interface JoinedRoomPayload {
@@ -15,7 +18,7 @@ interface JoinedRoomPayload {
   displayName: string;
 }
 
-export function DebateRoomClient({ roomId }: DebateRoomClientProps) {
+export function DebateRoomClient({ roomId, dbDebate }: DebateRoomClientProps) {
   const [room, setRoom] = useState<RoomSnapshot | null>(null);
   const [role, setRole] = useState<UserRole>("spectator");
   const [displayName, setDisplayName] = useState("Spectator");
@@ -159,6 +162,14 @@ export function DebateRoomClient({ roomId }: DebateRoomClientProps) {
           ))}
         </div>
       </section>
+
+      {dbDebate ? (
+        <DebateNoteSection
+          debateId={dbDebate.id}
+          debateTitle={dbDebate.title}
+          messages={dbDebate.messages}
+        />
+      ) : null}
 
       <section className="chat-input-wrap card">
         <form onSubmit={submitMessage} className="chat-form">

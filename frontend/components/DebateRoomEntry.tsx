@@ -14,23 +14,25 @@ type RoomView = "loading" | "replay" | "live";
 
 export function DebateRoomEntry({ roomId }: DebateRoomEntryProps) {
   const [view, setView] = useState<RoomView>("loading");
-  const [replayDebate, setReplayDebate] = useState<DebateDetail | null>(null);
+  const [dbDebate, setDbDebate] = useState<DebateDetail | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function resolveView() {
       setView("loading");
-      setReplayDebate(null);
+      setDbDebate(null);
 
       try {
         const debate = await fetchDebate(roomId);
         if (cancelled) return;
 
-        if (debate?.status === "finished") {
-          setReplayDebate(debate);
-          setView("replay");
-          return;
+        if (debate) {
+          setDbDebate(debate);
+          if (debate.status === "finished") {
+            setView("replay");
+            return;
+          }
         }
       } catch {
         if (cancelled) return;
@@ -49,9 +51,9 @@ export function DebateRoomEntry({ roomId }: DebateRoomEntryProps) {
     return <p className="muted">Chargement du débat…</p>;
   }
 
-  if (view === "replay" && replayDebate) {
-    return <DebateReplayClient debate={replayDebate} />;
+  if (view === "replay" && dbDebate) {
+    return <DebateReplayClient debate={dbDebate} />;
   }
 
-  return <DebateRoomClient roomId={roomId} />;
+  return <DebateRoomClient roomId={roomId} dbDebate={dbDebate} />;
 }

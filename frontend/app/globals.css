@@ -719,6 +719,173 @@ button.danger {
   color: #344054;
 }
 
+.notebook-layout {
+  display: grid;
+  gap: 20px;
+}
+
+.notebook-header h1 {
+  margin: 0 0 6px;
+  font-size: 1.8rem;
+}
+
+.notebook-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.notebook-list-header h2 {
+  margin: 0;
+}
+
+.notebook-form-card.is-collapsed {
+  padding: 0;
+}
+
+.notebook-form-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.notebook-form-toggle:hover {
+  background: #f9fafb;
+}
+
+.notebook-form-toggle-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.notebook-form-toggle-icon {
+  font-size: 1.25rem;
+  color: #667085;
+  line-height: 1;
+}
+
+.notebook-form-card.is-open .notebook-form {
+  padding-top: 4px;
+}
+
+.notebook-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.notebook-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+  color: #344054;
+}
+
+.notebook-form input,
+.notebook-form textarea,
+.notebook-form select {
+  font-weight: 400;
+}
+
+.notebook-form-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notebook-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.notebook-note-card h3 {
+  margin: 0 0 8px;
+}
+
+.notebook-note-content {
+  white-space: pre-wrap;
+  margin: 10px 0;
+}
+
+.notebook-links {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.notebook-link {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.notebook-link:hover {
+  text-decoration: underline;
+}
+
+.notebook-message-ref {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.notebook-meta {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+}
+
+.notebook-note-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.notebook-inline-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.debate-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.debate-note-card.is-collapsed .debate-note-header {
+  margin: 0;
+}
+
+.debate-note-context {
+  margin: 0 0 8px;
+}
+
+.debate-note-form {
+  margin-top: 8px;
+}
+
+.notebook-success {
+  margin: 0;
+  color: #166534;
+  font-size: 0.9rem;
+}
+
+.notebook-linked-hint {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
 .reveal {
   animation: fade-slide 360ms ease both;
 }
