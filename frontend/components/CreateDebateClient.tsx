@@ -19,7 +19,6 @@ export function CreateDebateClient() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthModalMode>("signin");
   const [title, setTitle] = useState("");
-  const [roomId, setRoomId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [turnDuration, setTurnDuration] = useState<180 | 300 | 600>(180);
@@ -96,7 +95,6 @@ export function CreateDebateClient() {
 
     getSocket().emit("createRoom", {
       title: title.trim(),
-      roomId: roomId.trim() || undefined,
       turnDuration,
       accessToken,
     });
@@ -140,14 +138,6 @@ export function CreateDebateClient() {
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Ex: L'IA doit-elle etre strictement regulee ?"
-              />
-
-              <label htmlFor="room-id">ID room (optionnel)</label>
-              <input
-                id="room-id"
-                value={roomId}
-                onChange={(event) => setRoomId(event.target.value)}
-                placeholder="Ex: debat-ia-001"
               />
 
               <label htmlFor="turn-duration">Duree de tour</label>

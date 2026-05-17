@@ -1,6 +1,5 @@
 export interface CreateRoomPayload {
   title: string;
-  roomId?: string;
   turnDuration?: 180 | 300 | 600;
   accessToken?: string;
 }
@@ -8,6 +7,12 @@ export interface CreateRoomPayload {
 export interface JoinRoomPayload {
   roomId: string;
   username?: string;
+  accessToken?: string;
+}
+
+export interface EndDebatePayload {
+  roomId: string;
+  accessToken: string;
 }
 
 export interface SendMessagePayload {
@@ -15,11 +20,6 @@ export interface SendMessagePayload {
   text: string;
   /** Token émis après un avertissement modération (envoi malgré le warn). */
   warnToken?: string;
-}
-
-export interface DeleteMessagePayload {
-  roomId: string;
-  messageId: string;
 }
 
 export interface GetRoomStatePayload {

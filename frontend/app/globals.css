@@ -811,19 +811,6 @@ button.danger {
   background: #64748b;
 }
 
-.moderator-switch {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.moderator-switch input {
-  width: 16px;
-  height: 16px;
-}
-
 .chat-stream {
   min-height: 360px;
 }
@@ -1122,6 +1109,48 @@ button.danger {
 .moderation-warn-banner {
   border-color: #fcd34d;
   background: #fffbeb;
+}
+
+.end-debate-btn {
+  margin-top: 8px;
+}
+
+.end-debate-modal h2 {
+  margin: 0 0 8px;
+}
+
+.debate-conclusion-card h3,
+.debate-conclusions-section h3 {
+  margin: 0 0 8px;
+}
+
+.debate-conclusion-prompt {
+  margin: 0 0 12px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.debate-conclusions-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.debate-conclusion-item {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--surface-elevated, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.debate-conclusion-item p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.debate-conclusion-form textarea {
+  min-height: 140px;
 }
 
 .moderation-warn-banner p {

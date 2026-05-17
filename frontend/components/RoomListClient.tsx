@@ -8,7 +8,6 @@ import { RoomSnapshot } from "@/lib/types";
 export function RoomListClient() {
   const [rooms, setRooms] = useState<RoomSnapshot[]>([]);
   const [title, setTitle] = useState("");
-  const [roomId, setRoomId] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -42,11 +41,10 @@ export function RoomListClient() {
     }
     setLoading(true);
     const socket = getSocket();
-    socket.emit("createRoom", { title, roomId: roomId.trim() || undefined });
+    socket.emit("createRoom", { title });
     setTimeout(() => {
       setLoading(false);
       setTitle("");
-      setRoomId("");
     }, 250);
   }
 
@@ -59,11 +57,6 @@ export function RoomListClient() {
             placeholder="Titre de la room"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-          />
-          <input
-            placeholder="Room ID (optionnel)"
-            value={roomId}
-            onChange={(event) => setRoomId(event.target.value)}
           />
           <button onClick={handleCreateRoom} disabled={loading}>
             {loading ? "Création..." : "Créer"}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ParticipantPill } from "@/components/ParticipantPill";
+import { DebateConclusionsSection } from "@/components/DebateConclusionsSection";
 import { DebateDetail, formatDebateDate } from "@/lib/debate";
 import { addFavorite, fetchFavoriteIds, removeFavorite } from "@/lib/favorites-api";
 import { useAuthSession } from "@/lib/useAuthSession";
@@ -128,6 +129,8 @@ export function DebateReplayClient({ debate }: DebateReplayClientProps) {
           </div>
         )}
       </section>
+
+      <DebateConclusionsSection conclusions={debate.conclusions ?? []} />
 
       <DebateNoteSection
         debateId={debate.id}

@@ -112,8 +112,13 @@ export function DebateNoteSection({
             </span>
           </button>
           {user ? (
-            <Link href="/notebook" className="btn btn-ghost btn-sm">
-              Voir mon notebook
+            <Link
+              href="/notebook"
+              className="btn btn-ghost btn-sm"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ouvrir mon notebook
             </Link>
           ) : null}
         </div>

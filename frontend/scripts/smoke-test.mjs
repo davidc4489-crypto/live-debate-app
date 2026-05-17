@@ -87,8 +87,7 @@ async function run() {
     );
     a.emit("sendMessage", { roomId, text: "Bonjour test temps réel" });
     const updatedAfterSend = await roomWithMessage;
-    const messageId = updatedAfterSend.messages[0]?.id;
-    if (!messageId) {
+    if (!updatedAfterSend.messages[0]?.id) {
       throw new Error("No message id after participant send");
     }
 
@@ -99,14 +98,6 @@ async function run() {
       throw new Error("Spectator was not blocked correctly");
     }
 
-    const roomWithoutMessage = waitForCondition(
-      b,
-      "roomUpdated",
-      (payload) => payload.id === roomId && payload.messages.length === 0,
-    );
-    b.emit("deleteMessage", { roomId, messageId });
-    await roomWithoutMessage;
-
     const finalRooms = await fetch(`${BACKEND_URL}/rooms`).then((response) => response.json());
     const testedRoom = finalRooms.find((room) => room.id === roomId);
     if (!testedRoom) {
@@ -115,8 +106,8 @@ async function run() {
     if (testedRoom.participants !== 2 || testedRoom.spectators !== 1) {
       throw new Error("Unexpected participant/spectator counts");
     }
-    if (testedRoom.messages.length !== 0) {
-      throw new Error("Message deletion failed");
+    if (testedRoom.messages.length < 1) {
+      throw new Error("Expected at least one message in room");
     }
 
     console.log("SMOKE TEST OK");

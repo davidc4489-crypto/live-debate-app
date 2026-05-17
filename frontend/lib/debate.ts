@@ -63,6 +63,15 @@ export interface DebateMessage {
   createdAt: string;
 }
 
+export interface DebateConclusion {
+  id: string;
+  userId: string;
+  displayName: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DebateDetail {
   id: string;
   title: string;
@@ -70,8 +79,14 @@ export interface DebateDetail {
   status: DebateStatus;
   participants: [DebateParticipant, DebateParticipant];
   messages: DebateMessage[];
+  conclusions: DebateConclusion[];
   endedAt: string | null;
 }
+
+export const CONCLUSION_PROMPT =
+  "Expliquez en quoi ce débat a été fertile, ce que vous avez appris de l'autre participant, et les points que vous retenez pour la suite.";
+
+export const MAX_CONCLUSION_LENGTH = 3000;
 
 export function formatDebateDate(isoDate: string): string {
   const date = new Date(isoDate);

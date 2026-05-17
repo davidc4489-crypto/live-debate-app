@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { SupabaseService } from "../supabase/supabase.service";
 import {
+  DebateConclusionDto,
   DebateDetailDto,
   DebateListItemDto,
   DebateParticipantDto,
@@ -25,6 +26,15 @@ interface MessageRow {
   id: string;
   content: string;
   created_at: string;
+  profiles: ProfileRow | ProfileRow[] | null;
+}
+
+interface ConclusionRow {
+  id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
   profiles: ProfileRow | ProfileRow[] | null;
 }
 
@@ -98,6 +108,7 @@ export class DebatesService {
         id,
         title,
         status,
+        created_at,
         ended_at,
         categories ( name ),
         messages (
@@ -109,6 +120,14 @@ export class DebatesService {
         debate_participants (
           role,
           position,
+          user_id,
+          profiles ( id, username, first_name, last_name, email )
+        ),
+        debate_conclusions (
+          id,
+          content,
+          created_at,
+          updated_at,
           user_id,
           profiles ( id, username, first_name, last_name, email )
         )
@@ -159,6 +178,9 @@ export class DebatesService {
       })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
+    const conclusionRows = (debate as DebateRow & { debate_conclusions?: ConclusionRow[] })
+      .debate_conclusions ?? [];
+
     return {
       id: debate.id,
       title: debate.title,
@@ -166,8 +188,27 @@ export class DebatesService {
       status: debate.status as "pending" | "active" | "finished",
       participants: this.extractParticipants(debate),
       messages,
+      conclusions: this.mapConclusions(conclusionRows),
       endedAt: debate.ended_at ?? null,
     };
+  }
+
+  private mapConclusions(rows: ConclusionRow[]): DebateConclusionDto[] {
+    return rows
+      .map((row) => {
+        const profile = unwrapOne(row.profiles);
+        return {
+          id: row.id,
+          userId: row.user_id,
+          displayName: profile ? displayName(profile) : "Participant",
+          content: row.content,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        };
+      })
+      .sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
   }
 
   private toListItem(debate: DebateRow): DebateListItemDto {

@@ -19,7 +19,7 @@ export class ModerationService {
     process.env.MODERATION_SERVICE_URL || "http://localhost:8000";
   private readonly timeoutMs = Number(process.env.MODERATION_TIMEOUT_MS || 300);
   private readonly fallbackOnDown: ModerationAction =
-    (process.env.MODERATION_FALLBACK_ON_DOWN as ModerationAction) || "warn";
+    (process.env.MODERATION_FALLBACK_ON_DOWN as ModerationAction) || "allow";
   private readonly cacheTtlMs = Number(process.env.MODERATION_CACHE_TTL_MS || 60_000);
 
   async moderateText(text: string): Promise<ModerationResult> {

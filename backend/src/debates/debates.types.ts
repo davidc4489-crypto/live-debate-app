@@ -12,6 +12,15 @@ export interface DebateMessageDto {
   createdAt: string;
 }
 
+export interface DebateConclusionDto {
+  id: string;
+  userId: string;
+  displayName: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DebateDetailDto {
   id: string;
   title: string;
@@ -19,6 +28,7 @@ export interface DebateDetailDto {
   status: DebateStatus;
   participants: [DebateParticipantDto, DebateParticipantDto];
   messages: DebateMessageDto[];
+  conclusions: DebateConclusionDto[];
   endedAt: string | null;
 }
 
