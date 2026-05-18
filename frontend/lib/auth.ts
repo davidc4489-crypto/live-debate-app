@@ -70,6 +70,11 @@ async function parseError(response: Response): Promise<string> {
   return "Une erreur est survenue";
 }
 
+function getSignupRedirectOrigin(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return window.location.origin;
+}
+
 export async function signUp(input: {
   email: string;
   password: string;
@@ -79,7 +84,10 @@ export async function signUp(input: {
   const response = await fetch(`${getBackendUrl()}/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      redirectTo: getSignupRedirectOrigin(),
+    }),
   });
 
   if (!response.ok) {

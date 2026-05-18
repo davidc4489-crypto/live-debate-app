@@ -7,6 +7,7 @@ import { SupabaseService } from "../supabase/supabase.service";
 import { SignInDto } from "./dto/sign-in.dto";
 import { SignUpDto } from "./dto/sign-up.dto";
 import { AuthResponseDto, AuthUserDto } from "./auth.types";
+import { emailConfirmRedirectUrl } from "./frontend-url";
 
 interface ProfileRow {
   id: string;
@@ -28,6 +29,7 @@ export class AuthService {
       email: dto.email.trim().toLowerCase(),
       password: dto.password,
       options: {
+        emailRedirectTo: emailConfirmRedirectUrl(dto.redirectTo),
         data: {
           first_name: dto.firstName?.trim() || null,
           last_name: dto.lastName?.trim() || null,
