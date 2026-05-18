@@ -133,8 +133,18 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
       ? (payload?.turnDuration as 180 | 300 | 600)
       : 180;
 
+    const creatorDisplayName =
+      await this.debateCreationService.getProfileDisplayName(creator.id);
+
     const room = this.roomsService.createRoom(title, turnDuration, creator.id);
-    client.emit("roomCreated", this.roomsService.toPublicRoom(room));
+    client.join(room.id);
+    this.roomsService.joinRoom(room.id, client.id, {
+      userId: creator.id,
+      displayName: creatorDisplayName,
+    });
+
+    const snapshot = this.roomsService.getRoomSnapshot(room.id);
+    client.emit("roomCreated", snapshot);
     this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
 
     void this.debateCreationService
@@ -161,7 +171,7 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     if (accessToken) {
       try {
         const user = await this.authService.getMe(accessToken);
-        const profileName = await this.debateFinishService.getProfileDisplayName(user.id);
+        const profileName = await this.debateCreationService.getProfileDisplayName(user.id);
         joinOptions = {
           userId: user.id,
           displayName: profileName,
@@ -177,6 +187,17 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     client.join(roomId);
     const session = this.roomsService.joinRoom(roomId, client.id, joinOptions);
     const room = this.roomsService.getRoom(roomId);
+
+    if (
+      session.userId &&
+      (session.role === "participantA" || session.role === "participantB")
+    ) {
+      const position = session.role === "participantA" ? 1 : 2;
+      void this.debateCreationService
+        .registerParticipant(roomId, session.userId, position)
+        .catch(() => undefined);
+    }
+
     if (room && room.participants.length >= 2) {
       void this.debateFinishService.markDebateActive(roomId);
     }

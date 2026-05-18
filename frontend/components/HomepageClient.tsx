@@ -9,6 +9,9 @@ import { SectionLayout } from "@/components/SectionLayout";
 import { DebateListItem, DebateTheme, debateThemes, getDebatePopularityScore } from "@/lib/debate";
 import { fetchDebates } from "@/lib/debates-api";
 import { addFavorite, fetchFavorites, removeFavorite } from "@/lib/favorites-api";
+import { applyLiveRoster } from "@/lib/participant-roster";
+import { getSocket } from "@/lib/socket";
+import { RoomSnapshot } from "@/lib/types";
 import { useAuthSession } from "@/lib/useAuthSession";
 
 type ThemeFilter = DebateTheme | "Tous";
@@ -50,6 +53,26 @@ export function HomepageClient() {
     void loadDebates();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onRoomsUpdated = (rooms: RoomSnapshot[]) => {
+      const patch = (debate: DebateListItem) => {
+        const live = rooms.find((room) => room.id === debate.id);
+        return applyLiveRoster(debate, live?.participantRoster);
+      };
+      setDebates((current) => current.map(patch));
+      setFavoriteDebates((current) => current.map(patch));
+    };
+
+    socket.on("roomsUpdated", onRoomsUpdated);
+    socket.emit("getRooms");
+
+    return () => {
+      socket.off("roomsUpdated", onRoomsUpdated);
     };
   }, []);
 

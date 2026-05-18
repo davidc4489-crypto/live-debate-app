@@ -11,6 +11,7 @@ import { DebateThread } from "@/components/ui/DebateThread";
 import { getStoredAuth } from "@/lib/auth";
 import { MAX_MESSAGE_LENGTH } from "@/lib/constants";
 import { DebateDetail } from "@/lib/debate";
+import { rosterToParticipants } from "@/lib/participant-roster";
 import { fetchDebate } from "@/lib/debates-api";
 import { getSocket } from "@/lib/socket";
 import { RoomSnapshot, UserRole } from "@/lib/types";
@@ -80,6 +81,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     const onRoomUpdated = (snapshot: RoomSnapshot) => {
       if (snapshot.id !== roomId) return;
       setRoom(snapshot);
+      void refreshDebate();
       const pending = pendingTextRef.current;
       if (!pending) return;
       const accepted = snapshot.messages.some(
@@ -159,12 +161,6 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     [isActiveSpeaker, remainingSeconds],
   );
 
-  const roleLabel = useMemo(() => {
-    if (role === "participantA") return "Participant A";
-    if (role === "participantB") return "Participant B";
-    return "Spectateur";
-  }, [role]);
-
   const turnStatusText = useMemo(() => {
     if (isFinished) return "Débat terminé.";
     if (waitingForOpponent) {
@@ -197,6 +193,21 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
 
   const showConclusionForm =
     isFinished && isParticipant && Boolean(user?.id) && sessionUserId === user?.id;
+
+  const headerParticipants = useMemo(() => {
+    return (
+      rosterToParticipants(room?.participantRoster) ??
+      dbDebate?.participants ?? [
+        { userId: null, displayName: "En attente d'un participant" },
+        { userId: null, displayName: "En attente d'un participant" },
+      ]
+    );
+  }, [room?.participantRoster, dbDebate?.participants]);
+
+  const roleLabel = useMemo(() => {
+    if (role === "spectator") return "Spectateur";
+    return displayName;
+  }, [role, displayName]);
 
   function submitMessage(event: FormEvent, warnToken?: string) {
     event.preventDefault();
@@ -248,16 +259,14 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
             ) : null}
           </div>
           <h2>{room?.title || dbDebate?.title || `Room ${roomId}`}</h2>
-          {dbDebate ? (
-            <div className="participants debate-room-participants">
-              {dbDebate.participants.map((participant) => (
-                <ParticipantPill
-                  key={participant.userId ?? participant.displayName}
-                  participant={participant}
-                />
-              ))}
-            </div>
-          ) : null}
+          <div className="participants debate-room-participants">
+            {headerParticipants.map((participant, index) => (
+              <ParticipantPill
+                key={participant.userId ?? `slot-${index}`}
+                participant={participant}
+              />
+            ))}
+          </div>
           <p className="muted">
             {room?.participants ?? 0} participant{(room?.participants ?? 0) !== 1 ? "s" : ""}
             {" · "}

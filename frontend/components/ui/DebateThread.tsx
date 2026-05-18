@@ -25,7 +25,7 @@ export function DebateThread({
         const side: "left" | "right" = index % 2 === 0 ? "left" : "right";
         const isSelf = Boolean(currentUserLabel && message.author === currentUserLabel);
         const turnNumber = Math.floor(index / 2) + 1;
-        const turnLabel = `Tour ${turnNumber} · ${side === "left" ? "Participant A" : "Participant B"}`;
+        const turnLabel = `Tour ${turnNumber} · ${message.author}`;
 
         return (
           <DebateMessageBubble

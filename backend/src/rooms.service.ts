@@ -83,11 +83,9 @@ export class RoomsService {
       if (room.participants.length < 2) {
         if (room.participants.length === 0) {
           role = "participantA";
-          if (!options?.displayName) displayName = "Participant A";
           room.participants.push(socketId);
         } else {
           role = "participantB";
-          if (!options?.displayName) displayName = "Participant B";
           room.participants.push(socketId);
         }
       } else {
@@ -207,9 +205,37 @@ export class RoomsService {
     return Object.values(this.rooms);
   }
 
+  getParticipantRoster(roomId: string): Array<{
+    userId: string | null;
+    displayName: string;
+    position: 1 | 2;
+  }> {
+    const room = this.rooms[roomId];
+    if (!room) return [];
+
+    const slots: Array<{
+      userId: string | null;
+      displayName: string;
+      position: 1 | 2;
+    }> = [];
+
+    room.participants.forEach((socketId, index) => {
+      const session = this.sessions.get(socketId);
+      const position = (index === 0 ? 1 : 2) as 1 | 2;
+      slots.push({
+        userId: session?.userId ?? null,
+        displayName: session?.displayName ?? "En attente d'un participant",
+        position,
+      });
+    });
+
+    return slots;
+  }
+
   toPublicRoom(room: RoomState) {
     const currentSpeakerSession = room.currentSpeaker ? this.sessions.get(room.currentSpeaker) : undefined;
     const remainingSeconds = room.turnEndsAt ? Math.max(0, Math.ceil((room.turnEndsAt - Date.now()) / 1000)) : 0;
+    const participantRoster = this.getParticipantRoster(room.id);
 
     return {
       id: room.id,
@@ -218,6 +244,7 @@ export class RoomsService {
       endedAt: room.endedAt ?? null,
       participants: room.participants.length,
       spectators: room.spectators.length,
+      participantRoster,
       messages: room.messages,
       turnDuration: room.turnDuration,
       currentSpeaker: room.currentSpeaker,

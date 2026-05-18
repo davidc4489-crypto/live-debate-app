@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { buildDisplayName } from "../profiles/profile.utils";
 import { SupabaseService } from "../supabase/supabase.service";
 import {
   DebateConclusionDto,
@@ -51,9 +52,12 @@ export interface DebateRow {
 }
 
 function displayName(profile: ProfileRow): string {
-  if (profile.username?.trim()) return profile.username.trim();
-  const full = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
-  return full || profile.email.split("@")[0];
+  return buildDisplayName({
+    username: profile.username,
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    email: profile.email,
+  });
 }
 
 function unwrapOne<T>(value: T | T[] | null): T | null {
@@ -157,8 +161,8 @@ export class DebatesService {
       });
 
     return [
-      participants[0] ?? { userId: null, displayName: "Participant A" },
-      participants[1] ?? { userId: null, displayName: "Participant B" },
+      participants[0] ?? { userId: null, displayName: "En attente d'un participant" },
+      participants[1] ?? { userId: null, displayName: "En attente d'un participant" },
     ];
   }
 

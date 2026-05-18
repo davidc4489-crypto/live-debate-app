@@ -33,5 +33,5 @@ export function ParticipantPill({ participant }: ParticipantPillProps) {
     );
   }
 
-  return <div className="participant-pill">{inner}</div>;
+  return <div className="participant-pill participant-pill-waiting">{inner}</div>;
 }

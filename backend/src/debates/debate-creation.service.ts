@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { buildDisplayName } from "../profiles/profile.utils";
 import { FollowsService } from "../follows/follows.service";
 import { SupabaseService } from "../supabase/supabase.service";
 
@@ -42,7 +43,51 @@ export class DebateCreationService {
       this.logger.warn(`Persistance débat : ${err instanceof Error ? err.message : err}`);
     }
 
+    await this.registerParticipant(roomId, creatorId, 1);
     await this.followsService.notifyFollowersNewDebate(creatorId, roomId, title);
+  }
+
+  async registerParticipant(
+    debateId: string,
+    userId: string,
+    position: 1 | 2,
+  ): Promise<void> {
+    const supabase = this.supabaseService.getServiceClient();
+    const { error } = await supabase.from("debate_participants").upsert(
+      {
+        debate_id: debateId,
+        user_id: userId,
+        role: "participant",
+        position,
+      },
+      { onConflict: "debate_id,user_id" },
+    );
+
+    if (error) {
+      this.logger.warn(
+        `Participant ${userId} (pos ${position}) sur ${debateId} : ${error.message}`,
+      );
+    }
+  }
+
+  async getProfileDisplayName(userId: string): Promise<string> {
+    const supabase = this.supabaseService.getServiceClient();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, email, username, first_name, last_name")
+      .eq("id", userId)
+      .single();
+
+    if (error || !data) {
+      return "Utilisateur";
+    }
+
+    return buildDisplayName({
+      username: data.username,
+      firstName: data.first_name,
+      lastName: data.last_name,
+      email: data.email,
+    });
   }
 
   private async getDefaultCategoryId(): Promise<string> {
