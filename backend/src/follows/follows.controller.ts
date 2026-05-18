@@ -69,6 +69,19 @@ export class FollowsController {
     return this.followsService.markNotificationRead(this.extractBearer(authorization), id);
   }
 
+  @Delete("users/me/notifications/:id")
+  deleteNotification(
+    @Param("id") id: string,
+    @Headers("authorization") authorization?: string,
+  ) {
+    return this.followsService.deleteNotification(this.extractBearer(authorization), id);
+  }
+
+  @Delete("users/me/notifications")
+  deleteAllNotifications(@Headers("authorization") authorization?: string) {
+    return this.followsService.deleteAllNotifications(this.extractBearer(authorization));
+  }
+
   private extractBearer(authorization?: string): string {
     if (!authorization?.startsWith("Bearer ")) {
       throw new UnauthorizedException("Token d'authentification manquant");

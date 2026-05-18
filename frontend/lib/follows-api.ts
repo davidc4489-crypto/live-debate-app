@@ -111,3 +111,28 @@ export async function markAllNotificationsRead(): Promise<void> {
     throw new Error(await parseError(response));
   }
 }
+
+export async function deleteNotification(notificationId: string): Promise<void> {
+  const response = await fetch(
+    `${getBackendUrl()}/users/me/notifications/${notificationId}`,
+    {
+      method: "DELETE",
+      headers: requireAuthHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+}
+
+export async function deleteAllNotifications(): Promise<void> {
+  const response = await fetch(`${getBackendUrl()}/users/me/notifications`, {
+    method: "DELETE",
+    headers: requireAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+}

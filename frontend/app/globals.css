@@ -821,6 +821,34 @@
     @apply absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-card border border-border bg-white p-3 shadow-card;
   }
 
+  .notifications-panel-head {
+    @apply mb-2 flex flex-wrap items-center justify-between gap-2;
+  }
+
+  .notifications-panel-actions {
+    @apply flex flex-wrap items-center gap-1;
+  }
+
+  .notifications-delete-all {
+    @apply text-ink-muted hover:text-red-600;
+  }
+
+  .notifications-empty {
+    @apply py-4 text-center text-sm;
+  }
+
+  .notifications-item-row {
+    @apply flex items-stretch gap-1;
+  }
+
+  .notifications-item-row .notifications-item-link {
+    @apply min-w-0 flex-1;
+  }
+
+  .notifications-item-delete {
+    @apply shrink-0 self-start rounded-md border-0 bg-transparent px-2 py-2 text-lg leading-none text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600;
+  }
+
   .notifications-list {
     @apply m-0 max-h-72 list-none space-y-1 overflow-y-auto p-0;
   }

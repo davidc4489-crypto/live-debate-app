@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AppNotification } from "@/lib/profile";
 import {
+  deleteAllNotifications,
+  deleteNotification,
   fetchNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -112,6 +114,31 @@ export function NotificationsMenu() {
     }
   }
 
+  async function handleDelete(
+    event: React.MouseEvent,
+    notificationId: string,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      await deleteNotification(notificationId);
+      setItems((current) => current.filter((item) => item.id !== notificationId));
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleDeleteAll() {
+    if (items.length === 0) return;
+    if (!window.confirm("Supprimer toutes vos notifications ?")) return;
+    try {
+      await deleteAllNotifications();
+      setItems([]);
+    } catch {
+      // ignore
+    }
+  }
+
   if (!user) return null;
 
   function debateLink(notification: AppNotification) {
@@ -136,14 +163,25 @@ export function NotificationsMenu() {
         <div className="notifications-panel" role="menu">
           <div className="notifications-panel-head">
             <strong>Notifications</strong>
-            {unreadCount > 0 ? (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => void handleMarkAllRead()}
-              >
-                Tout marquer lu
-              </button>
+            {items.length > 0 ? (
+              <div className="notifications-panel-actions">
+                {unreadCount > 0 ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => void handleMarkAllRead()}
+                  >
+                    Tout marquer lu
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm notifications-delete-all"
+                  onClick={() => void handleDeleteAll()}
+                >
+                  Tout supprimer
+                </button>
+              </div>
             ) : null}
           </div>
 
@@ -158,14 +196,25 @@ export function NotificationsMenu() {
                   key={notification.id}
                   className={`notifications-item ${notification.read ? "read" : "unread"}`}
                 >
-                  <Link
-                    href={debateLink(notification)}
-                    className="notifications-item-link"
-                    onClick={() => void handleMarkRead(notification)}
-                  >
-                    <span className="notifications-item-title">{notification.title}</span>
-                    <span className="notifications-item-message">{notification.message}</span>
-                  </Link>
+                  <div className="notifications-item-row">
+                    <Link
+                      href={debateLink(notification)}
+                      className="notifications-item-link"
+                      onClick={() => void handleMarkRead(notification)}
+                    >
+                      <span className="notifications-item-title">{notification.title}</span>
+                      <span className="notifications-item-message">{notification.message}</span>
+                    </Link>
+                    <button
+                      type="button"
+                      className="notifications-item-delete"
+                      aria-label="Supprimer la notification"
+                      title="Supprimer"
+                      onClick={(event) => void handleDelete(event, notification.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

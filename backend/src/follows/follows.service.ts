@@ -308,6 +308,43 @@ export class FollowsService {
     return { success: true };
   }
 
+  async deleteNotification(
+    accessToken: string,
+    notificationId: string,
+  ): Promise<{ success: true }> {
+    const me = await this.authService.getMe(accessToken);
+    const supabase = this.supabaseService.getServiceClient();
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", notificationId)
+      .eq("user_id", me.id)
+      .select("id")
+      .maybeSingle();
+
+    if (error || !data) {
+      throw new BadRequestException("Notification introuvable");
+    }
+
+    return { success: true };
+  }
+
+  async deleteAllNotifications(accessToken: string): Promise<{ success: true }> {
+    const me = await this.authService.getMe(accessToken);
+    const supabase = this.supabaseService.getServiceClient();
+
+    const { error } = await supabase.from("notifications").delete().eq("user_id", me.id);
+
+    if (error) {
+      throw new BadRequestException(
+        `Impossible de supprimer les notifications : ${error.message}`,
+      );
+    }
+
+    return { success: true };
+  }
+
   async notifyFollowersNewDebate(
     creatorId: string,
     debateOrRoomId: string,
