@@ -18,7 +18,7 @@ export class RoomsService {
     this.rooms[id] = {
       id,
       title: title.trim(),
-      status: "active",
+      status: "waiting",
       creatorUserId,
       participants: [],
       spectators: [],
@@ -26,6 +26,8 @@ export class RoomsService {
       turnDuration,
       currentSpeaker: null,
       turnEndsAt: null,
+      awaitingValidation: false,
+      debateValidated: false,
     };
     return this.rooms[id];
   }
@@ -41,6 +43,7 @@ export class RoomsService {
     room.endedAt = endedAt;
     room.currentSpeaker = null;
     room.turnEndsAt = null;
+    room.pendingSpeakerUserId = null;
     return room;
   }
 
@@ -70,6 +73,22 @@ export class RoomsService {
         if (role === "participantA" || role === "participantB") {
           const idx = room.participants.indexOf(existing.socketId);
           if (idx >= 0) room.participants[idx] = socketId;
+          if (room.currentSpeaker === existing.socketId) {
+            room.currentSpeaker = socketId;
+          }
+          if (
+            options.userId &&
+            room.pendingSpeakerUserId === options.userId &&
+            room.turnEndsAt
+          ) {
+            if (Date.now() >= room.turnEndsAt) {
+              room.pendingSpeakerUserId = null;
+              this.switchTurn(room.id);
+            } else {
+              room.currentSpeaker = socketId;
+              room.pendingSpeakerUserId = null;
+            }
+          }
         } else {
           room.spectators = room.spectators.filter((id) => id !== existing.socketId);
           room.spectators.push(socketId);
@@ -105,13 +124,68 @@ export class RoomsService {
     this.sessions.set(socketId, session);
 
     if (room.participants.length === 2) {
-      room.currentSpeaker = room.participants[0];
-      room.turnEndsAt = Date.now() + room.turnDuration * 1000;
+      if (!room.debateValidated) {
+        room.awaitingValidation = true;
+      } else if (!this.isDebateInProgress(room)) {
+        this.startTurns(room);
+      }
     } else if (room.participants.length < 2) {
+      room.awaitingValidation = false;
       room.currentSpeaker = null;
       room.turnEndsAt = null;
+      room.pendingSpeakerUserId = null;
     }
     return session;
+  }
+
+  private isDebateInProgress(room: RoomState): boolean {
+    return room.turnEndsAt !== null || room.messages.length > 0;
+  }
+
+  startValidatedDebate(roomId: string): RoomState | null {
+    const room = this.rooms[roomId];
+    if (!room) return null;
+    room.debateValidated = true;
+    room.awaitingValidation = false;
+    room.status = "active";
+    if (!this.isDebateInProgress(room)) {
+      this.startTurns(room);
+    }
+    return room;
+  }
+
+  syncFromDbValidation(roomId: string, validatedAt: string | null, opponentJoinedAt: string | null): void {
+    const room = this.rooms[roomId];
+    if (!room) return;
+    if (validatedAt) {
+      room.debateValidated = true;
+      room.awaitingValidation = false;
+      room.status = "active";
+      if (!this.isDebateInProgress(room)) {
+        this.startTurns(room);
+      }
+    } else if (opponentJoinedAt && room.participants.length >= 2) {
+      room.awaitingValidation = true;
+      room.debateValidated = false;
+    }
+  }
+
+  private startTurns(room: RoomState): void {
+    room.currentSpeaker = room.participants[0];
+    room.turnEndsAt = Date.now() + room.turnDuration * 1000;
+    room.pendingSpeakerUserId = null;
+  }
+
+  cancelRoom(roomId: string): RoomState | null {
+    const room = this.rooms[roomId];
+    if (!room) return null;
+    room.status = "cancelled";
+    room.currentSpeaker = null;
+    room.turnEndsAt = null;
+    room.awaitingValidation = false;
+    room.debateValidated = false;
+    room.pendingSpeakerUserId = null;
+    return room;
   }
 
   getSession(socketId: string): SocketSession | undefined {
@@ -152,6 +226,13 @@ export class RoomsService {
       };
     }
 
+    if (!room.debateValidated || room.awaitingValidation) {
+      return {
+        message: null,
+        error: "Le créateur doit valider le début du débat.",
+      };
+    }
+
     if (!room.currentSpeaker || room.currentSpeaker !== socketId) {
       return { message: null, error: "Ce n'est pas votre tour de parole." };
     }
@@ -186,7 +267,10 @@ export class RoomsService {
     this.sessions.delete(socketId);
 
     if (room.currentSpeaker === socketId) {
-      this.switchTurn(room.id);
+      room.currentSpeaker = null;
+      if (session.userId) {
+        room.pendingSpeakerUserId = session.userId;
+      }
     }
 
     if (room.participants.length === 0 && room.spectators.length === 0) {
@@ -251,6 +335,9 @@ export class RoomsService {
       currentSpeakerName: currentSpeakerSession?.displayName || null,
       turnEndsAt: room.turnEndsAt,
       remainingSeconds,
+      awaitingValidation: room.awaitingValidation ?? false,
+      debateValidated: room.debateValidated ?? false,
+      creatorUserId: room.creatorUserId ?? null,
     };
   }
 
@@ -268,7 +355,8 @@ export class RoomsService {
     const changedRoomIds: string[] = [];
     const now = Date.now();
     Object.values(this.rooms).forEach((room) => {
-      if (room.status === "finished") return;
+      if (room.status === "finished" || room.status === "cancelled") return;
+      if (!room.debateValidated) return;
       if (!room.currentSpeaker || !room.turnEndsAt) return;
       if (room.participants.length < 2) return;
       if (now >= room.turnEndsAt) {
@@ -282,6 +370,8 @@ export class RoomsService {
   switchTurn(roomId: string): RoomState | null {
     const room = this.rooms[roomId];
     if (!room) return null;
+
+    room.pendingSpeakerUserId = null;
 
     if (room.participants.length === 0) {
       room.currentSpeaker = null;

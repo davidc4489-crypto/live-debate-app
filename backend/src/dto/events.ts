@@ -25,3 +25,12 @@ export interface SendMessagePayload {
 export interface GetRoomStatePayload {
   roomId: string;
 }
+
+export interface ValidateDebateStartPayload {
+  roomId: string;
+  accessToken: string;
+}
+
+export interface SubscribeUserPayload {
+  accessToken: string;
+}

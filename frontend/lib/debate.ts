@@ -15,7 +15,7 @@ export const debateThemes: DebateTheme[] = [
   "Économie",
 ];
 
-export type DebateStatus = "pending" | "active" | "finished";
+export type DebateStatus = "pending" | "active" | "finished" | "cancelled";
 
 export interface DebateParticipant {
   userId: string | null;
@@ -37,6 +37,7 @@ export interface DebateListItem {
 
 export function getDebateCtaLabel(status: DebateStatus): string {
   if (status === "finished") return "Revoir le débat";
+  if (status === "cancelled") return "Voir le sujet";
   return "Rejoindre";
 }
 
@@ -77,6 +78,10 @@ export interface DebateDetail {
   title: string;
   theme: string;
   status: DebateStatus;
+  createdBy: string | null;
+  expiresAt: string | null;
+  validatedAt: string | null;
+  opponentJoinedAt: string | null;
   participants: [DebateParticipant, DebateParticipant];
   messages: DebateMessage[];
   conclusions: DebateConclusion[];

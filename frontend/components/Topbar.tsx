@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { getDisplayName, getStoredAuth, signOut } from "../lib/auth";
+import { getSocket } from "../lib/socket";
 import { useAuthSession } from "../lib/useAuthSession";
 import { AuthModal, AuthModalMode } from "./AuthModal";
 import { NotificationsMenu } from "./NotificationsMenu";
@@ -30,6 +31,22 @@ export function Topbar() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [profileMenuOpen]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const socket = getSocket();
+    const subscribe = () => {
+      const token = getStoredAuth()?.session.accessToken;
+      if (token) socket.emit("subscribeUser", { accessToken: token });
+    };
+
+    subscribe();
+    socket.io.on("reconnect", subscribe);
+    return () => {
+      socket.io.off("reconnect", subscribe);
+    };
+  }, [user]);
 
   function handleCreateDebateClick() {
     if (user) {

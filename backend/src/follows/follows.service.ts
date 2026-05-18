@@ -262,7 +262,7 @@ export class FollowsService {
       const actor = unwrapOne(row.profiles);
       return {
         id: row.id,
-        type: "new_debate",
+        type: row.type as NotificationDto["type"],
         actorId: row.actor_id,
         actorDisplayName: actor ? buildDisplayName(actor) : null,
         debateId: row.debate_id,
@@ -341,6 +341,43 @@ export class FollowsService {
     }));
 
     await supabase.from("notifications").insert(rows);
+  }
+
+  async notifyCreatorOpponentJoined(
+    creatorId: string,
+    opponentId: string,
+    debateId: string,
+    opponentDisplayName: string,
+  ): Promise<void> {
+    const supabase = this.supabaseService.getServiceClient();
+
+    const { data: existing } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("user_id", creatorId)
+      .eq("debate_id", debateId)
+      .eq("type", "opponent_joined")
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      return;
+    }
+
+    const name = opponentDisplayName.trim() || "Un participant";
+    const { error } = await supabase.from("notifications").insert({
+      user_id: creatorId,
+      type: "opponent_joined",
+      actor_id: opponentId,
+      debate_id: debateId,
+      room_id: debateId,
+      title: "Votre débat peut commencer",
+      message: `${name} a rejoint votre débat. Validez le lancement pour ouvrir les tours de parole.`,
+    });
+
+    if (error) {
+      // notification non bloquante
+    }
   }
 
   private async assertProfileExists(userId: string): Promise<void> {

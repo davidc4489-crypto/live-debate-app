@@ -59,7 +59,7 @@ export interface FollowedUser {
 
 export interface AppNotification {
   id: string;
-  type: "new_debate";
+  type: "new_debate" | "opponent_joined";
   actorId: string | null;
   actorDisplayName: string | null;
   debateId: string | null;

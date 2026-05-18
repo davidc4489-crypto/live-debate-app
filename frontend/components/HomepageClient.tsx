@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthModal, AuthModalMode } from "@/components/AuthModal";
 import { DebateCard } from "@/components/DebateCard";
 import { FilterChips } from "@/components/FilterChips";
@@ -9,7 +9,7 @@ import { SectionLayout } from "@/components/SectionLayout";
 import { DebateListItem, DebateTheme, debateThemes, getDebatePopularityScore } from "@/lib/debate";
 import { fetchDebates } from "@/lib/debates-api";
 import { addFavorite, fetchFavorites, removeFavorite } from "@/lib/favorites-api";
-import { applyLiveRoster } from "@/lib/participant-roster";
+import { mergeLiveRoomsIntoDebateList } from "@/lib/participant-roster";
 import { getSocket } from "@/lib/socket";
 import { RoomSnapshot } from "@/lib/types";
 import { useAuthSession } from "@/lib/useAuthSession";
@@ -31,6 +31,17 @@ export function HomepageClient() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [error, setError] = useState("");
   const [favoritesError, setFavoritesError] = useState("");
+  const liveRoomsRef = useRef<RoomSnapshot[]>([]);
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refreshDebatesFromApi = useCallback(async () => {
+    try {
+      const data = await fetchDebates();
+      setDebates(mergeLiveRoomsIntoDebateList(data, liveRoomsRef.current));
+    } catch {
+      // ignore — l'erreur initiale est déjà affichée au premier chargement
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +51,9 @@ export function HomepageClient() {
       setError("");
       try {
         const data = await fetchDebates();
-        if (!cancelled) setDebates(data);
+        if (!cancelled) {
+          setDebates(mergeLiveRoomsIntoDebateList(data, liveRoomsRef.current));
+        }
       } catch {
         if (!cancelled) {
           setError("Impossible de charger les débats. Vérifiez que le backend tourne.");
@@ -60,12 +73,14 @@ export function HomepageClient() {
     const socket = getSocket();
 
     const onRoomsUpdated = (rooms: RoomSnapshot[]) => {
-      const patch = (debate: DebateListItem) => {
-        const live = rooms.find((room) => room.id === debate.id);
-        return applyLiveRoster(debate, live?.participantRoster);
-      };
-      setDebates((current) => current.map(patch));
-      setFavoriteDebates((current) => current.map(patch));
+      liveRoomsRef.current = rooms;
+      setDebates((current) => mergeLiveRoomsIntoDebateList(current, rooms));
+      setFavoriteDebates((current) => mergeLiveRoomsIntoDebateList(current, rooms));
+
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+      refetchTimerRef.current = setTimeout(() => {
+        void refreshDebatesFromApi();
+      }, 400);
     };
 
     socket.on("roomsUpdated", onRoomsUpdated);
@@ -73,8 +88,9 @@ export function HomepageClient() {
 
     return () => {
       socket.off("roomsUpdated", onRoomsUpdated);
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
     };
-  }, []);
+  }, [refreshDebatesFromApi]);
 
   useEffect(() => {
     if (!user) {

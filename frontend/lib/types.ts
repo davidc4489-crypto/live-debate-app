@@ -6,7 +6,7 @@ export interface DebateMessage {
   text: string;
 }
 
-export type RoomStatus = "active" | "finished";
+export type RoomStatus = "waiting" | "active" | "finished" | "cancelled";
 
 export interface RoomParticipantSlot {
   userId: string | null;
@@ -28,4 +28,7 @@ export interface RoomSnapshot {
   currentSpeakerName: string | null;
   turnEndsAt: number | null;
   remainingSeconds: number;
+  awaitingValidation?: boolean;
+  debateValidated?: boolean;
+  creatorUserId?: string | null;
 }

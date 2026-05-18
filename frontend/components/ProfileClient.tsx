@@ -30,6 +30,7 @@ function initials(name: string) {
 function statusLabel(status: string): string {
   if (status === "active") return "En cours";
   if (status === "finished") return "Terminé";
+  if (status === "cancelled") return "Annulé";
   return "En attente";
 }
 

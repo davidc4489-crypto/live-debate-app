@@ -443,6 +443,18 @@
     @apply border-amber-200 bg-warning-soft;
   }
 
+  .debate-lifecycle-banner {
+    @apply border-sky-200 bg-sky-50 text-sm leading-relaxed;
+  }
+
+  .debate-validate-banner {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .create-debate-notice {
+    @apply rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm leading-relaxed;
+  }
+
   .moderation-block-msg {
     @apply rounded-lg bg-danger-soft px-3 py-2 text-danger-text;
   }
@@ -815,6 +827,14 @@
 
   .notifications-item-link {
     @apply block rounded-lg px-3 py-2 text-left no-underline transition-colors hover:bg-surface-muted;
+  }
+
+  .notifications-item-title {
+    @apply block text-sm font-semibold text-ink;
+  }
+
+  .notifications-item-message {
+    @apply mt-1 block text-sm leading-snug text-ink-secondary;
   }
 
   .notifications-item.unread .notifications-item-link {

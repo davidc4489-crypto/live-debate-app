@@ -36,6 +36,13 @@ interface ModerationWarnPayload {
   message: string;
 }
 
+function isMatchingRoomSnapshot(
+  snapshot: RoomSnapshot | null | undefined,
+  roomId: string,
+): snapshot is RoomSnapshot {
+  return Boolean(snapshot && snapshot.id === roomId);
+}
+
 export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRoomClientProps) {
   const { user } = useAuthSession();
   const [dbDebate, setDbDebate] = useState<DebateDetail | null>(initialDbDebate ?? null);
@@ -50,10 +57,33 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [endModalOpen, setEndModalOpen] = useState(false);
   const [endingDebate, setEndingDebate] = useState(false);
+  const [validatingStart, setValidatingStart] = useState(false);
   const pendingTextRef = useRef<string | null>(null);
+  const displayNameRef = useRef(displayName);
 
-  const isFinished = room?.status === "finished" || dbDebate?.status === "finished";
+  useEffect(() => {
+    displayNameRef.current = displayName;
+  }, [displayName]);
+
+  const isCancelled =
+    room?.status === "cancelled" || dbDebate?.status === "cancelled";
+  const isFinished =
+    room?.status === "finished" ||
+    dbDebate?.status === "finished" ||
+    isCancelled;
   const isParticipant = role === "participantA" || role === "participantB";
+  const awaitingValidation =
+    !isFinished &&
+    (room?.awaitingValidation === true ||
+      Boolean(dbDebate?.opponentJoinedAt && !dbDebate?.validatedAt));
+  const isCreator =
+    sessionUserId !== null &&
+    (sessionUserId === dbDebate?.createdBy ||
+      sessionUserId === room?.creatorUserId);
+  const debateIsLive =
+    !isFinished &&
+    !awaitingValidation &&
+    (room?.debateValidated === true || dbDebate?.status === "active");
 
   const refreshDebate = useCallback(async () => {
     try {
@@ -70,7 +100,6 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
 
   useEffect(() => {
     const socket = getSocket();
-    const accessToken = getStoredAuth()?.session.accessToken;
 
     const onJoinedRoom = (payload: JoinedRoomPayload) => {
       setRole(payload.role);
@@ -78,14 +107,30 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       setSessionUserId(payload.userId);
     };
 
-    const onRoomUpdated = (snapshot: RoomSnapshot) => {
-      if (snapshot.id !== roomId) return;
+    const applyAwaitingValidationFromSocket = (snapshot: RoomSnapshot) => {
+      if (!snapshot.awaitingValidation) return;
+      setDbDebate((prev) => {
+        if (!prev) return prev;
+        if (prev.opponentJoinedAt) return prev;
+        return {
+          ...prev,
+          opponentJoinedAt: new Date().toISOString(),
+        };
+      });
+    };
+
+    const onRoomUpdated = (snapshot: RoomSnapshot | null) => {
+      if (!isMatchingRoomSnapshot(snapshot, roomId)) return;
       setRoom(snapshot);
+      applyAwaitingValidationFromSocket(snapshot);
+      if (snapshot.remainingSeconds > 0) {
+        setRemainingSeconds(snapshot.remainingSeconds);
+      }
       void refreshDebate();
       const pending = pendingTextRef.current;
       if (!pending) return;
       const accepted = snapshot.messages.some(
-        (message) => message.user === displayName && message.text === pending,
+        (message) => message.user === displayNameRef.current && message.text === pending,
       );
       if (accepted) {
         pendingTextRef.current = null;
@@ -107,6 +152,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       setError(payload.message);
       setErrorIsBlock(payload.code === "MODERATION_BLOCK");
       setEndingDebate(false);
+      setValidatingStart(false);
     };
 
     const onModerationWarn = (payload: ModerationWarnPayload) => {
@@ -123,38 +169,87 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       }
     };
 
+    const onAwaitingValidation = (snapshot: RoomSnapshot | null) => {
+      if (!isMatchingRoomSnapshot(snapshot, roomId)) return;
+      setRoom(snapshot);
+      applyAwaitingValidationFromSocket(snapshot);
+      void refreshDebate();
+    };
+
+    const onDebateStarted = (snapshot: RoomSnapshot | null) => {
+      if (!isMatchingRoomSnapshot(snapshot, roomId)) return;
+      setRoom(snapshot);
+      setValidatingStart(false);
+      void refreshDebate();
+    };
+
+    const onDebateCancelled = (payload: { roomId: string }) => {
+      if (payload.roomId !== roomId) return;
+      void refreshDebate();
+    };
+
     socket.on("joinedRoom", onJoinedRoom);
     socket.on("roomUpdated", onRoomUpdated);
     socket.on("debateEnded", onDebateEnded);
+    socket.on("debateStarted", onDebateStarted);
+    socket.on("awaitingValidation", onAwaitingValidation);
+    socket.on("debateCancelled", onDebateCancelled);
     socket.on("errorMessage", onError);
     socket.on("moderationWarn", onModerationWarn);
     socket.on("tick", onTick);
-
-    socket.emit("joinRoom", { roomId, accessToken });
-    socket.emit("getRoomState", { roomId });
 
     return () => {
       socket.off("joinedRoom", onJoinedRoom);
       socket.off("roomUpdated", onRoomUpdated);
       socket.off("debateEnded", onDebateEnded);
+      socket.off("debateStarted", onDebateStarted);
+      socket.off("awaitingValidation", onAwaitingValidation);
+      socket.off("debateCancelled", onDebateCancelled);
       socket.off("errorMessage", onError);
       socket.off("moderationWarn", onModerationWarn);
       socket.off("tick", onTick);
     };
-  }, [roomId, displayName, refreshDebate]);
+  }, [roomId, refreshDebate]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    const accessToken = getStoredAuth()?.session.accessToken;
+
+    const rejoin = () => {
+      if (accessToken) {
+        socket.emit("subscribeUser", { accessToken });
+      }
+      socket.emit("joinRoom", { roomId, accessToken });
+    };
+
+    const onJoinedRoomForFetch = (payload: JoinedRoomPayload) => {
+      if (payload.roomId !== roomId) return;
+      socket.emit("getRoomState", { roomId });
+    };
+
+    socket.on("joinedRoom", onJoinedRoomForFetch);
+    rejoin();
+    socket.io.on("reconnect", rejoin);
+
+    return () => {
+      socket.off("joinedRoom", onJoinedRoomForFetch);
+      socket.io.off("reconnect", rejoin);
+    };
+  }, [roomId]);
 
   useEffect(() => {
     setRemainingSeconds(room?.remainingSeconds ?? 0);
   }, [room?.remainingSeconds]);
 
-  const waitingForOpponent = !isFinished && (room?.participants ?? 0) < 2;
+  const waitingForOpponent =
+    !isFinished && !isCancelled && (room?.participants ?? 0) < 2;
   const isActiveSpeaker = useMemo(
     () =>
-      !isFinished &&
+      debateIsLive &&
       !waitingForOpponent &&
       role !== "spectator" &&
       room?.currentSpeakerName === displayName,
-    [isFinished, waitingForOpponent, role, room?.currentSpeakerName, displayName],
+    [debateIsLive, waitingForOpponent, role, room?.currentSpeakerName, displayName],
   );
   const canSend = useMemo(
     () => isActiveSpeaker && remainingSeconds > 0,
@@ -162,15 +257,33 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   );
 
   const turnStatusText = useMemo(() => {
+    if (isCancelled) {
+      return "Ce débat a été fermé faute de participant dans le délai imparti.";
+    }
     if (isFinished) return "Débat terminé.";
     if (waitingForOpponent) {
       return isParticipant
-        ? "En attente d'un second participant pour commencer."
+        ? "En attente d'un second participant."
         : "Le débat commencera lorsque deux participants seront présents.";
+    }
+    if (awaitingValidation) {
+      if (isCreator) {
+        return "Un participant a rejoint : validez le début du débat.";
+      }
+      return "En attente de la validation du créateur pour démarrer.";
     }
     if (role === "spectator") return "Mode spectateur : vous observez le tour en direct.";
     return isActiveSpeaker ? "Vous avez la parole." : "En attente de l'autre participant.";
-  }, [isFinished, waitingForOpponent, isParticipant, role, isActiveSpeaker]);
+  }, [
+    isCancelled,
+    isFinished,
+    waitingForOpponent,
+    awaitingValidation,
+    isCreator,
+    isParticipant,
+    role,
+    isActiveSpeaker,
+  ]);
 
   const timerTone = useMemo(() => {
     if (remainingSeconds <= 10) return "danger";
@@ -237,6 +350,16 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     );
   }
 
+  function confirmValidateStart() {
+    const accessToken = getStoredAuth()?.session.accessToken;
+    if (!accessToken) {
+      setError("Connectez-vous pour démarrer le débat.");
+      return;
+    }
+    setValidatingStart(true);
+    getSocket().emit("validateDebateStart", { roomId, accessToken });
+  }
+
   function confirmEndDebate() {
     const accessToken = getStoredAuth()?.session.accessToken;
     if (!accessToken) {
@@ -253,10 +376,11 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
         <div>
           <div className="debate-header-meta">
             {dbDebate?.theme ? <span className="theme-badge">{dbDebate.theme}</span> : null}
-            {isFinished ? <span className="finished-badge">Débat terminé</span> : null}
-            {!isFinished && (room?.participants ?? 0) >= 2 ? (
-              <span className="live-badge">En direct</span>
+            {isCancelled ? <span className="finished-badge">Débat fermé</span> : null}
+            {isFinished && !isCancelled ? (
+              <span className="finished-badge">Débat terminé</span>
             ) : null}
+            {debateIsLive ? <span className="live-badge">En direct</span> : null}
           </div>
           <h2>{room?.title || dbDebate?.title || `Room ${roomId}`}</h2>
           <div className="participants debate-room-participants">
@@ -274,11 +398,17 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
           </p>
           <DebateProgress
             messageCount={room?.messages.length ?? 0}
-            status={isFinished ? "finished" : "active"}
+            status={
+              isCancelled || isFinished
+                ? "finished"
+                : awaitingValidation || waitingForOpponent
+                  ? "pending"
+                  : "active"
+            }
             participantCount={room?.participants ?? 0}
             currentSpeakerName={room?.currentSpeakerName}
           />
-          {!isFinished && !waitingForOpponent ? (
+          {debateIsLive && !waitingForOpponent ? (
             <div className={`turn-timer ${timerTone}`}>
               <span>Tour: {room?.currentSpeakerName || "En attente"}</span>
               <strong>{formattedTimer}</strong>
@@ -289,7 +419,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
         <div className="chat-role-box">
           <span className={`role-badge ${role}`}>{roleLabel}</span>
           <span className="muted">{displayName}</span>
-          {isParticipant && !isFinished ? (
+          {isParticipant && debateIsLive ? (
             <button
               type="button"
               className="btn btn-ghost btn-sm end-debate-btn"
@@ -305,7 +435,48 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
         <p className={errorIsBlock ? "auth-error moderation-block-msg" : "muted"}>{error}</p>
       ) : null}
 
-      {moderationWarn && !isFinished ? (
+      {isCancelled ? (
+        <section className="card debate-lifecycle-banner" role="status">
+          <p>
+            Ce débat a été fermé automatiquement : aucun participant n&apos;a rejoint dans
+            l&apos;heure. Vous pourrez bientôt proposer ce sujet dans la section des sujets
+            proposés et être notifié lorsqu&apos;un autre participant souhaitera y participer.
+          </p>
+        </section>
+      ) : null}
+
+      {waitingForOpponent && isCreator && !isCancelled ? (
+        <section className="card debate-lifecycle-banner" role="status">
+          <p>
+            En attente d&apos;un adversaire. Si personne ne rejoint dans l&apos;heure, le débat
+            sera fermé automatiquement. Vous pourrez ensuite proposer ce sujet dans la section
+            des sujets proposés (à venir) et recevoir une notification lorsqu&apos;un participant
+            souhaitera s&apos;y inscrire.
+          </p>
+        </section>
+      ) : null}
+
+      {awaitingValidation && isCreator ? (
+        <section className="card debate-lifecycle-banner debate-validate-banner" role="alert">
+          <p>Un participant a rejoint votre débat. Validez le début pour lancer les échanges.</p>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={validatingStart}
+            onClick={confirmValidateStart}
+          >
+            {validatingStart ? "Démarrage…" : "Démarrer le débat"}
+          </button>
+        </section>
+      ) : null}
+
+      {awaitingValidation && !isCreator && isParticipant ? (
+        <section className="card debate-lifecycle-banner" role="status">
+          <p>Le créateur du débat doit valider le début avant que les tours ne commencent.</p>
+        </section>
+      ) : null}
+
+      {moderationWarn && debateIsLive ? (
         <section className="card moderation-warn-banner" role="alert">
           <p>{moderationWarn.message}</p>
           <div className="moderation-warn-actions">
@@ -342,7 +513,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
         />
       ) : null}
 
-      {dbDebate && !isFinished ? (
+      {dbDebate && debateIsLive ? (
         <DebateNoteSection
           debateId={dbDebate.id}
           debateTitle={dbDebate.title}
@@ -350,7 +521,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
         />
       ) : null}
 
-      {!isFinished ? (
+      {debateIsLive ? (
         <section className="chat-input-wrap card">
           <form onSubmit={submitMessage} className="chat-form">
             <div className="chat-input-field">
@@ -376,11 +547,9 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
           </form>
         {!canSend ? (
           <p className="muted">
-            {waitingForOpponent
-              ? "Le débat démarre dès qu'un second participant rejoint la room."
-              : role === "spectator"
-                ? "Les spectateurs sont en lecture seule."
-                : "Vous pouvez écrire uniquement pendant votre tour."}
+            {role === "spectator"
+              ? "Les spectateurs sont en lecture seule."
+              : "Vous pouvez écrire uniquement pendant votre tour."}
           </p>
         ) : null}
         </section>

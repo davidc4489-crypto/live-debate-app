@@ -33,6 +33,10 @@ export function DebateRoomEntry({ roomId }: DebateRoomEntryProps) {
             setView("replay");
             return;
           }
+          if (debate.status === "cancelled") {
+            setView("live");
+            return;
+          }
         }
       } catch {
         if (cancelled) return;

@@ -19,8 +19,10 @@ export function DebateProgress({
   const statusLabel =
     status === "finished"
       ? "Débat terminé"
-      : participantCount < 2
-        ? "En attente du second participant"
+      : status === "pending"
+        ? participantCount < 2
+          ? "En attente du second participant"
+          : "En attente de validation du créateur"
         : currentSpeakerName
           ? `Tour de ${currentSpeakerName}`
           : "Échange en cours";

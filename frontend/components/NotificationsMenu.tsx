@@ -8,6 +8,8 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/follows-api";
+import { getStoredAuth } from "@/lib/auth";
+import { getSocket } from "@/lib/socket";
 import { useAuthSession } from "@/lib/useAuthSession";
 
 export function NotificationsMenu() {
@@ -39,11 +41,27 @@ export function NotificationsMenu() {
       }
     }
 
+    const socket = getSocket();
+    const subscribe = () => {
+      const token = getStoredAuth()?.session.accessToken;
+      if (token) socket.emit("subscribeUser", { accessToken: token });
+    };
+
+    const onNotificationsUpdated = () => {
+      void load();
+    };
+
     void load();
+    subscribe();
+    socket.on("notificationsUpdated", onNotificationsUpdated);
+    socket.io.on("reconnect", subscribe);
     const interval = setInterval(() => void load(), 60_000);
+
     return () => {
       cancelled = true;
       clearInterval(interval);
+      socket.off("notificationsUpdated", onNotificationsUpdated);
+      socket.io.off("reconnect", subscribe);
     };
   }, [user]);
 

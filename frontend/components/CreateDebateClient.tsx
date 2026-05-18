@@ -131,6 +131,13 @@ export function CreateDebateClient() {
           <>
             <p className="muted">Donnez un titre, puis lancez la room en direct.</p>
 
+            <p className="muted create-debate-notice">
+              Si aucun participant ne rejoint dans l&apos;heure, le débat sera automatiquement
+              fermé. Vous pourrez ensuite proposer ce sujet dans la section des sujets proposés
+              (à venir) et recevoir une notification lorsqu&apos;un autre participant souhaitera y
+              participer.
+            </p>
+
             <form className="create-form" onSubmit={handleCreate}>
               <label htmlFor="debate-title">Titre du debat</label>
               <input

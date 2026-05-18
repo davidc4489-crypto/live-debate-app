@@ -45,6 +45,10 @@ export interface DebateRow {
   status: string;
   created_at: string;
   ended_at?: string | null;
+  created_by?: string | null;
+  expires_at?: string | null;
+  validated_at?: string | null;
+  opponent_joined_at?: string | null;
   categories: { name: string } | { name: string }[] | null;
   messages: { id: string }[] | MessageRow[] | null;
   debate_participants: ParticipantRow[] | null;
@@ -90,6 +94,7 @@ export class DebatesService {
         debate_views ( id )
       `,
       )
+      .neq("status", "cancelled")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -114,6 +119,10 @@ export class DebatesService {
         status,
         created_at,
         ended_at,
+        created_by,
+        expires_at,
+        validated_at,
+        opponent_joined_at,
         categories ( name ),
         messages (
           id,
@@ -189,7 +198,11 @@ export class DebatesService {
       id: debate.id,
       title: debate.title,
       theme: category?.name ?? "Général",
-      status: debate.status as "pending" | "active" | "finished",
+      status: debate.status as DebateDetailDto["status"],
+      createdBy: debate.created_by ?? null,
+      expiresAt: debate.expires_at ?? null,
+      validatedAt: debate.validated_at ?? null,
+      opponentJoinedAt: debate.opponent_joined_at ?? null,
       participants: this.extractParticipants(debate),
       messages,
       conclusions: this.mapConclusions(conclusionRows),
@@ -230,7 +243,7 @@ export class DebatesService {
       views: debate.debate_views?.length ?? 0,
       spectators: spectatorCount,
       createdAt: debate.created_at,
-      status: debate.status as "pending" | "active" | "finished",
+      status: debate.status as DebateListItemDto["status"],
       isLive: debate.status === "active",
     };
   }

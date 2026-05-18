@@ -1,4 +1,4 @@
-export type DebateStatus = "pending" | "active" | "finished";
+export type DebateStatus = "pending" | "active" | "finished" | "cancelled";
 
 export interface DebateParticipantDto {
   userId: string | null;
@@ -26,6 +26,10 @@ export interface DebateDetailDto {
   title: string;
   theme: string;
   status: DebateStatus;
+  createdBy: string | null;
+  expiresAt: string | null;
+  validatedAt: string | null;
+  opponentJoinedAt: string | null;
   participants: [DebateParticipantDto, DebateParticipantDto];
   messages: DebateMessageDto[];
   conclusions: DebateConclusionDto[];

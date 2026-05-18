@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { buildDisplayName } from "../profiles/profile.utils";
 import { FollowsService } from "../follows/follows.service";
 import { SupabaseService } from "../supabase/supabase.service";
+import { DebateLifecycleService } from "./debate-lifecycle.service";
 
 @Injectable()
 export class DebateCreationService {
@@ -11,6 +12,7 @@ export class DebateCreationService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly followsService: FollowsService,
+    private readonly debateLifecycleService: DebateLifecycleService,
   ) {}
 
   async onLiveDebateCreated(
@@ -20,27 +22,42 @@ export class DebateCreationService {
     turnDuration: number,
   ): Promise<void> {
     const supabase = this.supabaseService.getServiceClient();
+    const categoryId = await this.getDefaultCategoryId();
 
-    try {
-      const categoryId = await this.getDefaultCategoryId();
-      const { error } = await supabase.from("debates").upsert(
-        {
-          id: roomId,
-          title,
-          category_id: categoryId,
-          status: "pending",
-          created_by: creatorId,
-          max_turn_time: turnDuration,
-          max_message_length: 500,
-        },
-        { onConflict: "id" },
+    const baseRow = {
+      id: roomId,
+      title,
+      category_id: categoryId,
+      status: "pending" as const,
+      created_by: creatorId,
+      max_turn_time: turnDuration,
+      max_message_length: 500,
+    };
+
+    const withExpiry = {
+      ...baseRow,
+      expires_at: this.debateLifecycleService.getExpiresAtIso(),
+    };
+
+    let insertError = (
+      await supabase.from("debates").upsert(withExpiry, { onConflict: "id" })
+    ).error;
+
+    if (
+      insertError &&
+      /expires_at|validated_at|opponent_joined_at|column/i.test(insertError.message)
+    ) {
+      this.logger.warn(
+        `Colonne lifecycle absente — persistance sans expiration. Appliquez la migration 00007.`,
       );
+      insertError = (
+        await supabase.from("debates").upsert(baseRow, { onConflict: "id" })
+      ).error;
+    }
 
-      if (error) {
-        this.logger.warn(`Persistance débat ignorée : ${error.message}`);
-      }
-    } catch (err) {
-      this.logger.warn(`Persistance débat : ${err instanceof Error ? err.message : err}`);
+    if (insertError) {
+      this.logger.error(`Échec persistance débat ${roomId} : ${insertError.message}`);
+      throw new Error(insertError.message);
     }
 
     await this.registerParticipant(roomId, creatorId, 1);

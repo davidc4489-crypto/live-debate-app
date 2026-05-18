@@ -1,6 +1,6 @@
 export type UserRole = "participantA" | "participantB" | "spectator";
 
-export type RoomStatus = "active" | "finished";
+export type RoomStatus = "waiting" | "active" | "finished" | "cancelled";
 
 export interface DebateMessage {
   id: string;
@@ -20,6 +20,12 @@ export interface RoomState {
   turnDuration: number;
   currentSpeaker: string | null;
   turnEndsAt: number | null;
+  /** userId du participant dont le tour est en pause (déconnexion temporaire) */
+  pendingSpeakerUserId?: string | null;
+  /** true quand 2 participants sont présents mais le créateur n'a pas encore validé */
+  awaitingValidation?: boolean;
+  /** true une fois le débat démarré par validation du créateur */
+  debateValidated?: boolean;
   endedAt?: string | null;
 }
 
