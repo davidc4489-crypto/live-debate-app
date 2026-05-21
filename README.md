@@ -41,6 +41,17 @@ Créer `frontend/.env.local` à partir de `frontend/.env.example` :
 NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
 ```
 
+### Mot de passe oublié (Supabase Auth)
+
+Dans **Authentication → URL Configuration** du projet Supabase, ajouter aux **Redirect URLs** :
+
+- `http://localhost:3000/auth/reset-password`
+- `https://<votre-domaine-vercel>/auth/reset-password`
+
+La variable backend `FRONTEND_URL` doit lister les mêmes origines (virgules) que pour la confirmation d’email (`/auth/confirm`).
+
+Flux : connexion → **Mot de passe oublié ?** → email Supabase → page `/auth/reset-password` → nouveau mot de passe.
+
 ## Lancer en local
 
 ### 1) Appliquer le schéma Supabase

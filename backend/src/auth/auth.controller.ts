@@ -7,6 +7,8 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { SignInDto } from "./dto/sign-in.dto";
 import { SignUpDto } from "./dto/sign-up.dto";
 
@@ -34,6 +36,24 @@ export class AuthController {
   getMe(@Headers("authorization") authorization?: string) {
     const token = this.extractBearerToken(authorization);
     return this.authService.getMe(token);
+  }
+
+  @Post("forgot-password")
+  forgotPassword(@Body() body: ForgotPasswordDto) {
+    return this.authService.requestPasswordReset(body.email, body.redirectTo);
+  }
+
+  @Post("reset-password")
+  resetPassword(
+    @Headers("authorization") authorization: string | undefined,
+    @Body() body: ResetPasswordDto,
+  ) {
+    const token = this.extractBearerToken(authorization);
+    return this.authService.resetPassword(
+      token,
+      body.password,
+      body.refreshToken,
+    );
   }
 
   private extractBearerToken(authorization?: string): string {

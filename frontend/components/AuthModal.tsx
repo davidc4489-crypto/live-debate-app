@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { signIn, signUp } from "../lib/auth";
+import { requestPasswordReset, signIn, signUp } from "../lib/auth";
 
-export type AuthModalMode = "signin" | "signup";
+export type AuthModalMode = "signin" | "signup" | "forgot";
 
 interface AuthModalProps {
   open: boolean;
@@ -26,10 +26,12 @@ export function AuthModal({
   const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setInfo(null);
     setLoading(false);
   }, [open, mode]);
 
@@ -52,13 +54,21 @@ export function AuthModal({
   if (!open) return null;
 
   const isSignUp = mode === "signup";
+  const isForgot = mode === "forgot";
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setInfo(null);
 
     try {
+      if (isForgot) {
+        const message = await requestPasswordReset(email);
+        setInfo(message);
+        return;
+      }
+
       if (isSignUp) {
         await signUp({
           email,
@@ -79,6 +89,18 @@ export function AuthModal({
     }
   }
 
+  const title = isForgot
+    ? "Mot de passe oublié"
+    : isSignUp
+      ? "Créer un compte"
+      : "Se connecter";
+
+  const subtitle = isForgot
+    ? "Indiquez votre email. Vous recevrez un lien pour choisir un nouveau mot de passe."
+    : isSignUp
+      ? "Rejoignez Debately pour participer aux débats en direct."
+      : "Connectez-vous pour rejoindre et créer des débats.";
+
   return (
     <div className="auth-overlay" onClick={onClose} role="presentation">
       <div
@@ -92,12 +114,8 @@ export function AuthModal({
           ×
         </button>
 
-        <h2 id="auth-modal-title">{isSignUp ? "Créer un compte" : "Se connecter"}</h2>
-        <p className="auth-modal-subtitle">
-          {isSignUp
-            ? "Rejoignez Debately pour participer aux débats en direct."
-            : "Connectez-vous pour rejoindre et créer des débats."}
-        </p>
+        <h2 id="auth-modal-title">{title}</h2>
+        <p className="auth-modal-subtitle">{subtitle}</p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           {isSignUp ? (
@@ -137,35 +155,70 @@ export function AuthModal({
             />
           </label>
 
-          <label>
-            Mot de passe
-            <input
-              type="password"
-              required
-              minLength={6}
-              autoComplete={isSignUp ? "new-password" : "current-password"}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
-            />
-          </label>
+          {!isForgot ? (
+            <label>
+              Mot de passe
+              <input
+                type="password"
+                required
+                minLength={6}
+                autoComplete={isSignUp ? "new-password" : "current-password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+              />
+            </label>
+          ) : null}
 
           {error ? <p className="auth-error">{error}</p> : null}
+          {info ? <p className="muted">{info}</p> : null}
 
           <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
-            {loading ? "Chargement…" : isSignUp ? "S'inscrire" : "Se connecter"}
+            {loading
+              ? "Chargement…"
+              : isForgot
+                ? "Envoyer le lien"
+                : isSignUp
+                  ? "S'inscrire"
+                  : "Se connecter"}
           </button>
         </form>
 
+        {mode === "signin" ? (
+          <p className="auth-switch">
+            <button
+              type="button"
+              className="auth-switch-link"
+              onClick={() => onSwitchMode("forgot")}
+            >
+              Mot de passe oublié ?
+            </button>
+          </p>
+        ) : null}
+
         <p className="auth-switch">
-          {isSignUp ? "Déjà un compte ?" : "Pas encore de compte ?"}{" "}
-          <button
-            type="button"
-            className="auth-switch-link"
-            onClick={() => onSwitchMode(isSignUp ? "signin" : "signup")}
-          >
-            {isSignUp ? "Se connecter" : "S'inscrire"}
-          </button>
+          {isForgot ? (
+            <>
+              <button
+                type="button"
+                className="auth-switch-link"
+                onClick={() => onSwitchMode("signin")}
+              >
+                Retour à la connexion
+              </button>
+            </>
+          ) : (
+            <>
+              {isSignUp ? "Déjà un compte ?" : "Pas encore de compte ?"}{" "}
+              <button
+                type="button"
+                className="auth-switch-link"
+                onClick={() => onSwitchMode(isSignUp ? "signin" : "signup")}
+              >
+                {isSignUp ? "Se connecter" : "S'inscrire"}
+              </button>
+            </>
+          )}
         </p>
       </div>
     </div>

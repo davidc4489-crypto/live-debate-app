@@ -1,13 +1,14 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from "@nestjs/common";
 import { SupabaseService } from "../supabase/supabase.service";
 import { SignInDto } from "./dto/sign-in.dto";
 import { SignUpDto } from "./dto/sign-up.dto";
 import { AuthResponseDto, AuthUserDto } from "./auth.types";
-import { emailConfirmRedirectUrl } from "./frontend-url";
+import { emailConfirmRedirectUrl, passwordResetRedirectUrl } from "./frontend-url";
 
 interface ProfileRow {
   id: string;
@@ -19,6 +20,8 @@ interface ProfileRow {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async signUp(dto: SignUpDto): Promise<AuthResponseDto> {
@@ -78,6 +81,83 @@ export class AuthService {
   async signOut(accessToken: string): Promise<{ success: true }> {
     const supabase = this.supabaseService.getClientWithToken(accessToken);
     const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    return { success: true };
+  }
+
+  async requestPasswordReset(
+    email: string,
+    redirectTo?: string,
+  ): Promise<{ success: true; message: string }> {
+    this.assertEmail(email);
+
+    const supabase = this.supabaseService.getClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      { redirectTo: passwordResetRedirectUrl(redirectTo) },
+    );
+
+    if (error) {
+      this.logger.warn(`resetPasswordForEmail : ${error.message}`);
+    }
+
+    return {
+      success: true,
+      message:
+        "Si un compte existe avec cette adresse, un email de réinitialisation vient d'être envoyé.",
+    };
+  }
+
+  async resetPassword(
+    accessToken: string,
+    password: string,
+    refreshToken?: string,
+  ): Promise<{ success: true }> {
+    this.assertPassword(password);
+
+    const anon = this.supabaseService.getClient();
+    const { data, error: userError } = await anon.auth.getUser(accessToken);
+
+    if (userError || !data.user) {
+      throw new UnauthorizedException(
+        "Lien invalide ou expiré. Demandez un nouvel email de réinitialisation.",
+      );
+    }
+
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const admin = this.supabaseService.getServiceClient();
+      const { error } = await admin.auth.admin.updateUserById(data.user.id, {
+        password,
+      });
+
+      if (error) {
+        throw new BadRequestException(error.message);
+      }
+
+      return { success: true };
+    }
+
+    if (!refreshToken?.trim()) {
+      throw new BadRequestException(
+        "Session de réinitialisation incomplète. Rouvrez le lien reçu par email.",
+      );
+    }
+
+    const supabase = this.supabaseService.getClient();
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken.trim(),
+    });
+
+    if (sessionError) {
+      throw new UnauthorizedException(sessionError.message);
+    }
+
+    const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
       throw new BadRequestException(error.message);
@@ -187,15 +267,26 @@ export class AuthService {
       throw new BadRequestException("Email et mot de passe sont requis");
     }
 
-    if (password.length < 6) {
-      throw new BadRequestException(
-        "Le mot de passe doit contenir au moins 6 caractères",
-      );
+    this.assertPassword(password);
+    this.assertEmail(email);
+  }
+
+  private assertEmail(email?: string): void {
+    if (!email?.trim()) {
+      throw new BadRequestException("Adresse email requise");
     }
 
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(email.trim())) {
       throw new BadRequestException("Adresse email invalide");
+    }
+  }
+
+  private assertPassword(password: string): void {
+    if (!password || password.length < 6) {
+      throw new BadRequestException(
+        "Le mot de passe doit contenir au moins 6 caractères",
+      );
     }
   }
 }

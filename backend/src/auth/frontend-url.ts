@@ -25,3 +25,7 @@ export function resolveFrontendOrigin(requested?: string): string {
 export function emailConfirmRedirectUrl(requested?: string): string {
   return `${resolveFrontendOrigin(requested)}/auth/confirm`;
 }
+
+export function passwordResetRedirectUrl(requested?: string): string {
+  return `${resolveFrontendOrigin(requested)}/auth/reset-password`;
+}

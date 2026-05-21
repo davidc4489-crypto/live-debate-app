@@ -70,7 +70,7 @@ async function parseError(response: Response): Promise<string> {
   return "Une erreur est survenue";
 }
 
-function getSignupRedirectOrigin(): string | undefined {
+function getFrontendRedirectOrigin(): string | undefined {
   if (typeof window === "undefined") return undefined;
   return window.location.origin;
 }
@@ -86,7 +86,7 @@ export async function signUp(input: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...input,
-      redirectTo: getSignupRedirectOrigin(),
+      redirectTo: getFrontendRedirectOrigin(),
     }),
   });
 
@@ -129,6 +129,43 @@ export async function signOut(): Promise<void> {
     }).catch(() => undefined);
   }
   clearAuth();
+}
+
+export async function requestPasswordReset(email: string): Promise<string> {
+  const response = await fetch(`${getBackendUrl()}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email,
+      redirectTo: getFrontendRedirectOrigin(),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+
+  const data = (await response.json()) as { message?: string };
+  return data.message ?? "Email envoyé si le compte existe.";
+}
+
+export async function resetPassword(
+  accessToken: string,
+  password: string,
+  refreshToken?: string,
+): Promise<void> {
+  const response = await fetch(`${getBackendUrl()}/auth/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ password, refreshToken }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
 }
 
 export async function fetchMe(): Promise<AuthUser | null> {
