@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AppLogo } from "@/components/AppLogo";
 import { resetPassword } from "@/lib/auth";
 
 export default function ResetPasswordPage() {
@@ -75,6 +76,7 @@ export default function ResetPasswordPage() {
 
   return (
     <section className="card reveal" style={{ maxWidth: 480, margin: "2rem auto" }}>
+      <AppLogo href="/" variant="full" size="sm" className="auth-modal-brand" />
       <h1>Nouveau mot de passe</h1>
       <p className="muted">{message}</p>
 

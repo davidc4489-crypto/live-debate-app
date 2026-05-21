@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AppLogo } from "./AppLogo";
 import { useAuthSession } from "../lib/useAuthSession";
 
 const STORAGE_KEY = "debately:sidebar-expanded";
@@ -70,15 +71,18 @@ export function Sidebar() {
         aria-label="Navigation principale"
       >
         <div className="sidebar-head">
-          <button
-            type="button"
-            className="sidebar-toggle"
-            onClick={() => setExpanded((v) => !v)}
-            aria-label={expanded ? "Réduire la barre latérale" : "Élargir la barre latérale"}
-            aria-expanded={expanded}
-          >
-            <ChevronIcon expanded={expanded} />
-          </button>
+          <AppLogo href="/" showName={expanded} size="sm" className="sidebar-brand" />
+          <div className="sidebar-head-row">
+            <button
+              type="button"
+              className="sidebar-toggle"
+              onClick={() => setExpanded((v) => !v)}
+              aria-label={expanded ? "Réduire la barre latérale" : "Élargir la barre latérale"}
+              aria-expanded={expanded}
+            >
+              <ChevronIcon expanded={expanded} />
+            </button>
+          </div>
         </div>
 
         <nav className="sidebar-nav">

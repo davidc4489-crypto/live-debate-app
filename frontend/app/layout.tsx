@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Sidebar } from "../components/Sidebar";
 import { Topbar } from "../components/Topbar";
+import { APP_NAME, APP_TAGLINE } from "../lib/brand";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -11,9 +12,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Debately — Débats posés et structurés",
+  title: `${APP_NAME} — ${APP_TAGLINE}`,
   description:
-    "Plateforme de débats en ligne : échanges réfléchis, tours de parole, conclusions et modération.",
+    `${APP_NAME} : plateforme de débats en ligne — échanges réfléchis, tours de parole, conclusions et modération.`,
+  icons: {
+    icon: "/logo_min.png",
+    apple: "/logo_min.png",
+  },
 };
 
 export default function RootLayout({

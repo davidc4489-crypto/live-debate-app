@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { AppLogo } from "@/components/AppLogo";
 import { requestPasswordReset, signIn, signUp } from "../lib/auth";
+import { APP_NAME } from "@/lib/brand";
 
 export type AuthModalMode = "signin" | "signup" | "forgot";
 
@@ -98,7 +100,7 @@ export function AuthModal({
   const subtitle = isForgot
     ? "Indiquez votre email. Vous recevrez un lien pour choisir un nouveau mot de passe."
     : isSignUp
-      ? "Rejoignez Debately pour participer aux débats en direct."
+      ? `Rejoignez ${APP_NAME} pour participer aux débats en direct.`
       : "Connectez-vous pour rejoindre et créer des débats.";
 
   return (
@@ -114,6 +116,7 @@ export function AuthModal({
           ×
         </button>
 
+        <AppLogo href="/" variant="full" size="sm" className="auth-modal-brand" />
         <h2 id="auth-modal-title">{title}</h2>
         <p className="auth-modal-subtitle">{subtitle}</p>
 

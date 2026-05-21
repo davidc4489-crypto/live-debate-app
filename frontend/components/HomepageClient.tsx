@@ -12,6 +12,7 @@ import { addFavorite, fetchFavorites, removeFavorite } from "@/lib/favorites-api
 import { mergeLiveRoomsIntoDebateList } from "@/lib/participant-roster";
 import { getSocket } from "@/lib/socket";
 import { RoomSnapshot } from "@/lib/types";
+import { APP_NAME } from "@/lib/brand";
 import { useAuthSession } from "@/lib/useAuthSession";
 
 type ThemeFilter = DebateTheme | "Tous";
@@ -213,7 +214,7 @@ export function HomepageClient() {
     <div className="home-root">
       <section className="hero reveal">
         <div className="hero-card">
-          <p className="kicker">Débats posés · tours de parole · conclusions</p>
+          <p className="kicker">{APP_NAME} · débats posés · tours de parole · conclusions</p>
           <h1>Des échanges structurés, pour penser avant de répondre.</h1>
           <p className="hero-subtitle">
             Une plateforme sobre dédiée à la qualité du débat : tours de parole, modération attentive et

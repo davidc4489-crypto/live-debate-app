@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AppLogo } from "@/components/AppLogo";
 import { fetchMe, saveAuth } from "@/lib/auth";
 
 export default function AuthConfirmPage() {
@@ -67,6 +68,7 @@ export default function AuthConfirmPage() {
 
   return (
     <section className="card reveal" style={{ maxWidth: 480, margin: "2rem auto" }}>
+      <AppLogo href="/" variant="full" size="sm" className="auth-modal-brand" />
       <h1>Confirmation du compte</h1>
       <p className="muted">{message}</p>
     </section>

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MissionPageClient } from "@/components/MissionPageClient";
+import { APP_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Notre mission — Debately",
+  title: `Notre mission — ${APP_NAME}`,
   description:
-    "Découvrez pourquoi Debately existe : des débats structurés, respectueux et pensés pour la réflexion.",
+    `Découvrez pourquoi ${APP_NAME} existe : des débats structurés, respectueux et pensés pour la réflexion.`,
 };
 
 export default function NotreMissionPage() {

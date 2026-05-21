@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { getDisplayName, getStoredAuth, signOut } from "../lib/auth";
 import { getSocket } from "../lib/socket";
 import { useAuthSession } from "../lib/useAuthSession";
+import { AppLogo } from "./AppLogo";
 import { AuthModal, AuthModalMode } from "./AuthModal";
 import { NotificationsMenu } from "./NotificationsMenu";
 
@@ -94,9 +95,7 @@ export function Topbar() {
             >
               <MenuIcon />
             </button>
-            <Link href="/" className="brand">
-              Debately
-            </Link>
+            <AppLogo href="/" size="md" />
           </div>
 
           <div className="topbar-actions">

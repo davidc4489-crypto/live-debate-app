@@ -149,6 +149,26 @@
     @apply text-[15px] font-semibold tracking-tight text-ink no-underline;
   }
 
+  .brand-logo {
+    @apply inline-flex items-center gap-2 no-underline text-ink;
+  }
+
+  .brand-logo-img {
+    @apply shrink-0 rounded-md object-contain;
+  }
+
+  .brand-logo-name {
+    @apply text-[15px] font-semibold tracking-tight;
+  }
+
+  .brand-logo-full {
+    @apply justify-center;
+  }
+
+  .brand-logo-img-full {
+    @apply h-auto w-auto rounded-none;
+  }
+
   .topbar-actions {
     @apply flex items-center justify-end gap-2;
   }
@@ -188,9 +208,19 @@
   }
 
   .sidebar-head {
-    @apply flex items-center justify-end px-1.5;
-    height: 40px;
-    border-bottom: 1px solid var(--border);
+    @apply flex flex-col items-stretch gap-1.5 border-b border-border px-1.5 py-2;
+  }
+
+  .sidebar-brand {
+    @apply justify-center;
+  }
+
+  .sidebar.is-expanded .sidebar-brand {
+    @apply justify-start;
+  }
+
+  .sidebar-head-row {
+    @apply flex items-center justify-end;
   }
 
   .sidebar-toggle {
@@ -546,6 +576,14 @@
     @apply m-0 pr-8 text-[16px] font-semibold text-ink;
   }
 
+  .auth-modal-brand {
+    @apply mb-3 justify-center;
+  }
+
+  .auth-modal-brand .brand-logo-img-full {
+    @apply max-h-20;
+  }
+
   .auth-modal-subtitle {
     @apply mt-1.5 mb-5 text-[13px] leading-relaxed text-ink-muted;
   }
@@ -682,6 +720,14 @@
 
   .mission-hero {
     @apply space-y-4 pb-2;
+  }
+
+  .mission-hero-brand {
+    @apply mb-2 justify-start;
+  }
+
+  .mission-hero-brand .brand-logo-img-full {
+    @apply max-h-32 md:max-h-36;
   }
 
   .mission-hero-lead {

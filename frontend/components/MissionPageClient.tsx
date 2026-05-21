@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { AppLogo } from "@/components/AppLogo";
+import { APP_NAME } from "@/lib/brand";
 
 const principles = [
   {
@@ -52,10 +54,11 @@ export function MissionPageClient() {
   return (
     <article className="mission-page reveal">
       <header className="mission-hero">
+        <AppLogo href="/" variant="full" size="md" className="mission-hero-brand" />
         <p className="kicker">Notre mission</p>
         <h1>Redonner sa place au débat, dans le calme et la clarté.</h1>
         <p className="mission-hero-lead">
-          Debately est une plateforme de débats structurés : des tours de parole, une modération
+          {APP_NAME} est une plateforme de débats structurés : des tours de parole, une modération
           attentive et des conclusions qui valorisent ce que chacun a appris — pas le clash.
         </p>
         <div className="hero-cta">
@@ -93,7 +96,7 @@ export function MissionPageClient() {
         <h2 id="mission-solution">Une plateforme pensée pour des échanges de qualité</h2>
         <div className="mission-prose">
           <p>
-            Debately propose un cadre clair : deux participants, des tours de parole limités dans
+            {APP_NAME} propose un cadre clair : deux participants, des tours de parole limités dans
             le temps, une modération automatique des contenus problématiques, et une phase de
             conclusion à la fin de chaque débat.
           </p>
@@ -113,7 +116,7 @@ export function MissionPageClient() {
 
       <section className="mission-section" aria-labelledby="mission-principles">
         <p className="mission-section-label">Nos principes</p>
-        <h2 id="mission-principles">Ce qui guide chaque débat sur Debately</h2>
+        <h2 id="mission-principles">Ce qui guide chaque débat sur {APP_NAME}</h2>
         <div className="mission-principles-grid">
           {principles.map((item) => (
             <div key={item.title} className="card mission-principle-card">
@@ -144,7 +147,7 @@ export function MissionPageClient() {
 
       <section className="mission-section" aria-labelledby="mission-audience">
         <p className="mission-section-label">Pour qui</p>
-        <h2 id="mission-audience">À qui s&apos;adresse Debately ?</h2>
+        <h2 id="mission-audience">À qui s&apos;adresse {APP_NAME} ?</h2>
         <div className="mission-audience-grid">
           {audiences.map((item) => (
             <div key={item.title} className="card mission-audience-card">
@@ -165,7 +168,7 @@ export function MissionPageClient() {
             publier.
           </p>
           <p>
-            Debately reste une plateforme en évolution. Notre ambition : affiner les outils de
+            {APP_NAME} reste une plateforme en évolution. Notre ambition : affiner les outils de
             modération, enrichir les formats de débat, et construire une communauté qui choisit la
             qualité plutôt que le buzz.
           </p>
