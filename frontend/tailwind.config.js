@@ -57,15 +57,15 @@ module.exports = {
         content: "72rem",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.06)",
+        card: "0 1px 0 rgba(16, 24, 40, 0.04)",
         header: "0 1px 0 rgba(16, 24, 40, 0.06)",
       },
       borderRadius: {
-        card: "12px",
+        card: "8px",
         pill: "9999px",
       },
       transitionDuration: {
-        DEFAULT: "200ms",
+        DEFAULT: "150ms",
       },
     },
   },

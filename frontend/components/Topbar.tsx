@@ -48,111 +48,109 @@ export function Topbar() {
     };
   }, [user]);
 
-  function handleCreateDebateClick() {
-    if (user) {
-      router.push("/room/new");
-      return;
+  useEffect(() => {
+    function onOpenAuth(event: Event) {
+      const detail = (event as CustomEvent<{
+        mode?: AuthModalMode;
+        pendingCreate?: boolean;
+        pendingProfile?: boolean;
+      }>).detail;
+      setAuthMode(detail?.mode ?? "signin");
+      if (detail?.pendingCreate) setPendingCreate(true);
+      if (detail?.pendingProfile) setPendingProfile(true);
+      setAuthOpen(true);
     }
-    setPendingCreate(true);
-    setAuthMode("signin");
-    setAuthOpen(true);
-  }
+    window.addEventListener("debately:open-auth", onOpenAuth);
+    return () => window.removeEventListener("debately:open-auth", onOpenAuth);
+  }, []);
 
   function openAuth(mode: AuthModalMode) {
     setAuthMode(mode);
     setAuthOpen(true);
   }
 
-  function handleProfileClick() {
-    if (user) {
-      setProfileMenuOpen((open) => !open);
-      return;
-    }
-    setPendingProfile(true);
-    setAuthMode("signin");
-    setAuthOpen(true);
-  }
-
-  function closeProfileMenu() {
-    setProfileMenuOpen(false);
+  function toggleSidebar() {
+    window.dispatchEvent(new CustomEvent("debately:toggle-sidebar"));
   }
 
   async function handleSignOut() {
+    setProfileMenuOpen(false);
     await signOut();
     await refreshUser();
   }
+
+  const displayName = user ? getDisplayName(user) : "";
 
   return (
     <>
       <header className="topbar">
         <div className="topbar-inner">
-          <Link href="/" className="brand">
-            Debately
-          </Link>
-          <nav className="nav-links">
-            <Link href="/">Accueil</Link>
-            <Link href="/#latest">Débats</Link>
-            <Link href="/notre-mission">Notre mission</Link>
-          </nav>
+          <div className="topbar-left">
+            <button
+              type="button"
+              className="topbar-mobile-toggle"
+              aria-label="Ouvrir la navigation"
+              onClick={toggleSidebar}
+            >
+              <MenuIcon />
+            </button>
+            <Link href="/" className="brand">
+              Debately
+            </Link>
+          </div>
 
           <div className="topbar-actions">
             {loadingSession ? (
               <span className="auth-placeholder" aria-hidden />
             ) : user ? (
               <>
-                <Link href="/notebook" className="btn btn-ghost btn-sm">
-                  Notebook
-                </Link>
                 <NotificationsMenu />
                 <div className="topbar-profile-wrap" ref={profileMenuRef}>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm topbar-profile-btn"
-                    onClick={handleProfileClick}
+                    className="topbar-profile-btn"
+                    onClick={() => setProfileMenuOpen((v) => !v)}
                     aria-expanded={profileMenuOpen}
                     aria-haspopup="menu"
+                    aria-label="Menu du profil"
                   >
-                    <ProfileNavIcon />
-                    Mon profil
+                    <ProfileAvatar name={displayName} />
                   </button>
                   {profileMenuOpen ? (
                     <div className="topbar-profile-menu" role="menu">
+                      <div className="topbar-profile-menu-head">
+                        <span className="topbar-profile-menu-name">{displayName}</span>
+                      </div>
                       <Link
                         href={`/profile/${user.id}`}
                         className="topbar-profile-menu-item"
                         role="menuitem"
-                        onClick={closeProfileMenu}
+                        onClick={() => setProfileMenuOpen(false)}
                       >
-                        Voir mon profil
+                        Mon profil
                       </Link>
                       <Link
                         href="/profile/edit"
                         className="topbar-profile-menu-item"
                         role="menuitem"
-                        onClick={closeProfileMenu}
+                        onClick={() => setProfileMenuOpen(false)}
                       >
-                        Créer / modifier mon profil
+                        Modifier mon profil
                       </Link>
+                      <button
+                        type="button"
+                        className="topbar-profile-menu-item topbar-profile-menu-signout"
+                        role="menuitem"
+                        onClick={handleSignOut}
+                      >
+                        Déconnexion
+                      </button>
                     </div>
                   ) : null}
-                </div>
-                <div className="auth-user-menu">
-                  <span className="auth-user-name">{getDisplayName(user)}</span>
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={handleSignOut}>
-                    Déconnexion
-                  </button>
                 </div>
               </>
             ) : (
               <>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm topbar-profile-btn"
-                  onClick={handleProfileClick}
-                >
-                  <ProfileNavIcon />
-                  Mon profil
-                </button>
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
@@ -169,13 +167,6 @@ export function Topbar() {
                 </button>
               </>
             )}
-            <button
-              type="button"
-              className="btn btn-primary nav-cta"
-              onClick={handleCreateDebateClick}
-            >
-              Créer débat
-            </button>
           </div>
         </div>
       </header>
@@ -207,23 +198,21 @@ export function Topbar() {
   );
 }
 
-function ProfileNavIcon() {
+function MenuIcon() {
   return (
-    <svg
-      className="topbar-profile-icon"
-      viewBox="0 0 24 24"
-      width="18"
-      height="18"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       <path
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+        d="M4 6h16M4 12h16M4 18h16"
       />
     </svg>
   );
+}
+
+function ProfileAvatar({ name }: { name: string }) {
+  const initial = (name || "?").trim().charAt(0).toUpperCase();
+  return <span className="topbar-avatar">{initial}</span>;
 }
