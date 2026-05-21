@@ -7,7 +7,7 @@
     "build": "nest build",
     "start": "nest start",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/main.js",
     "seed": "node scripts/seed-debates.mjs",
     "migrate:profiles": "node scripts/apply-profile-migration.mjs",
     "test:moderation": "node scripts/test-moderation.mjs",

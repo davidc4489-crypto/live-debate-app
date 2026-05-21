@@ -133,8 +133,10 @@ Créer un **Web Service** sur Render pointant sur le repo GitHub.
 Configuration :
 
 - Root Directory: `backend`
-- Build Command: `npm install && npm run build`
-- Start Command: `npm run start:prod`
+- Build Command: `npm ci && npm run build` (les `devDependencies` sont requises pour compiler Nest)
+- Start Command: `npm run start:prod` (lance `dist/main.js`)
+
+Un fichier `render.yaml` à la racine du repo peut servir de blueprint. Si le build échoue avec `Cannot find module dist/main`, vérifier que `dist/main.js` est bien produit localement après `npm run build` dans `backend/`.
 - Environment Variable:
   - `PORT` peut être laissé vide (Render l'injecte automatiquement)
 

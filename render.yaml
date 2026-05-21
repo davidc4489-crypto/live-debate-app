@@ -1,0 +1,11 @@
+# Blueprint Render — Web Service backend (ajuster le nom du service si besoin).
+services:
+  - type: web
+    name: live-debate-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production

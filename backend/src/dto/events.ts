@@ -1,7 +1,7 @@
 export type {
   DebatePresenceEvent,
   DebatePresenceKind,
-} from "../../../shared/debate-presence";
+} from "../shared/debate-presence";
 
 export interface CreateRoomPayload {
   title: string;
