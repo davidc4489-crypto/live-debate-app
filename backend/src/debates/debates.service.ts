@@ -49,6 +49,8 @@ export interface DebateRow {
   expires_at?: string | null;
   validated_at?: string | null;
   opponent_joined_at?: string | null;
+  paused_by_user_id?: string | null;
+  resume_requested_at?: string | null;
   categories: { name: string } | { name: string }[] | null;
   messages: { id: string }[] | MessageRow[] | null;
   debate_participants: ParticipantRow[] | null;
@@ -83,6 +85,8 @@ export class DebatesService {
         title,
         status,
         created_at,
+        paused_by_user_id,
+        resume_requested_at,
         categories ( name ),
         messages ( id ),
         debate_participants (
@@ -123,6 +127,8 @@ export class DebatesService {
         expires_at,
         validated_at,
         opponent_joined_at,
+        paused_by_user_id,
+        resume_requested_at,
         categories ( name ),
         messages (
           id,
@@ -203,6 +209,8 @@ export class DebatesService {
       expiresAt: debate.expires_at ?? null,
       validatedAt: debate.validated_at ?? null,
       opponentJoinedAt: debate.opponent_joined_at ?? null,
+      pausedByUserId: debate.paused_by_user_id ?? null,
+      resumeRequestedAt: debate.resume_requested_at ?? null,
       participants: this.extractParticipants(debate),
       messages,
       conclusions: this.mapConclusions(conclusionRows),
@@ -245,6 +253,8 @@ export class DebatesService {
       createdAt: debate.created_at,
       status: debate.status as DebateListItemDto["status"],
       isLive: debate.status === "active",
+      pausedByUserId: debate.paused_by_user_id ?? null,
+      resumeRequestedAt: debate.resume_requested_at ?? null,
     };
   }
 }

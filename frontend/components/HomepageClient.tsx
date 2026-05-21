@@ -203,6 +203,7 @@ export function HomepageClient() {
         showFavorite={Boolean(user)}
         isFavorite={favoriteIds.has(debate.id)}
         favoriteLoading={favoriteLoadingId === debate.id}
+        currentUserId={user?.id ?? null}
         onFavoriteToggle={handleFavoriteToggle}
       />
     );

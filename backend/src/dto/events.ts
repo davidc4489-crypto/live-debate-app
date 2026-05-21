@@ -1,3 +1,8 @@
+export type {
+  DebatePresenceEvent,
+  DebatePresenceKind,
+} from "../../../shared/debate-presence";
+
 export interface CreateRoomPayload {
   title: string;
   turnDuration?: 180 | 300 | 600;
@@ -32,5 +37,27 @@ export interface ValidateDebateStartPayload {
 }
 
 export interface SubscribeUserPayload {
+  accessToken: string;
+}
+
+export interface LeaveDebatePayload {
+  roomId: string;
+  accessToken: string;
+  action: "pause" | "finish";
+}
+
+export interface ResolveAbsentDebatePayload {
+  roomId: string;
+  accessToken: string;
+  action: "pause" | "finish";
+}
+
+export interface RequestResumeDebatePayload {
+  roomId: string;
+  accessToken: string;
+}
+
+export interface ValidateResumeDebatePayload {
+  roomId: string;
   accessToken: string;
 }

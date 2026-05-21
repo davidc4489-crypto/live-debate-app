@@ -5,6 +5,8 @@ import { SupabaseModule } from "../supabase/supabase.module";
 import { DebateCreationService } from "./debate-creation.service";
 import { DebateFinishService } from "./debate-finish.service";
 import { DebateLifecycleService } from "./debate-lifecycle.service";
+import { DebatePresenceService } from "./debate-presence.service";
+import { DebateRestoreService } from "./debate-restore.service";
 import { DebatesConclusionsService } from "./debates-conclusions.service";
 import { DebatesController } from "./debates.controller";
 import { DebatesService } from "./debates.service";
@@ -17,6 +19,8 @@ import { DebatesService } from "./debates.service";
     DebateCreationService,
     DebateFinishService,
     DebateLifecycleService,
+    DebateRestoreService,
+    DebatePresenceService,
     DebatesConclusionsService,
   ],
   exports: [
@@ -24,6 +28,8 @@ import { DebatesService } from "./debates.service";
     DebateCreationService,
     DebateFinishService,
     DebateLifecycleService,
+    DebateRestoreService,
+    DebatePresenceService,
     DebatesConclusionsService,
   ],
 })

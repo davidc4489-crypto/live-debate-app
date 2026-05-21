@@ -1,6 +1,13 @@
 export type UserRole = "participantA" | "participantB" | "spectator";
 
-export type RoomStatus = "waiting" | "active" | "finished" | "cancelled";
+export type RoomStatus = "waiting" | "active" | "finished" | "cancelled" | "paused";
+
+export interface ParticipantSlot {
+  userId: string;
+  displayName: string;
+  role: "participantA" | "participantB";
+  socketId: string | null;
+}
 
 export interface DebateMessage {
   id: string;
@@ -27,6 +34,15 @@ export interface RoomState {
   /** true une fois le débat démarré par validation du créateur */
   debateValidated?: boolean;
   endedAt?: string | null;
+  pausedByUserId?: string | null;
+  pausedByDisplayName?: string | null;
+  endedByUserId?: string | null;
+  absentParticipantUserId?: string | null;
+  absentParticipantDisplayName?: string | null;
+  participantSlots?: [ParticipantSlot | null, ParticipantSlot | null];
+  resumeRequestedAt?: string | null;
+  /** userId du participant qui avait la parole à la pause */
+  turnUserId?: string | null;
 }
 
 export interface SocketSession {

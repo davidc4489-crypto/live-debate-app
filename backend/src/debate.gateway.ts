@@ -15,8 +15,13 @@ import {
   GetRoomStatePayload,
   JoinRoomPayload,
   SendMessagePayload,
+  LeaveDebatePayload,
+  RequestResumeDebatePayload,
+  ResolveAbsentDebatePayload,
   SubscribeUserPayload,
   ValidateDebateStartPayload,
+  ValidateResumeDebatePayload,
+  DebatePresenceEvent,
 } from "./dto/events";
 import { AuthService } from "./auth/auth.service";
 import { MessageFlagsService } from "./moderation/message-flags.service";
@@ -24,8 +29,15 @@ import { ModerationService } from "./moderation/moderation.service";
 import { DebateCreationService } from "./debates/debate-creation.service";
 import { DebateFinishService } from "./debates/debate-finish.service";
 import { DebateLifecycleService } from "./debates/debate-lifecycle.service";
+import { DebatePresenceService } from "./debates/debate-presence.service";
+import { DebateRestoreService } from "./debates/debate-restore.service";
 import { RoomsService } from "./rooms.service";
-import { HttpException } from "@nestjs/common";
+import {
+  httpExceptionMessage,
+  runEmittingHttpErrors,
+  withAuthenticatedRoomSession,
+} from "./debate-gateway-session.helper";
+import type { GatewaySessionDeps } from "./debate-gateway-session.helper";
 
 @WebSocketGateway({
   cors: { origin: "*" },
@@ -38,6 +50,7 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
 
   private turnInterval: NodeJS.Timeout;
   private cancelInterval: NodeJS.Timeout;
+  private cancelExpiredDebatesRunning = false;
 
   constructor(
     private readonly roomsService: RoomsService,
@@ -47,6 +60,8 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     private readonly debateCreationService: DebateCreationService,
     private readonly debateFinishService: DebateFinishService,
     private readonly debateLifecycleService: DebateLifecycleService,
+    private readonly debateRestoreService: DebateRestoreService,
+    private readonly debatePresenceService: DebatePresenceService,
   ) {
     this.turnInterval = setInterval(() => {
       const changedRoomIds = this.roomsService.tickTurns();
@@ -72,22 +87,40 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     }, 1000);
 
     this.cancelInterval = setInterval(() => {
-      void this.debateLifecycleService.cancelExpiredDebates().then((cancelledIds) => {
-        cancelledIds.forEach((roomId) => {
-          const room = this.roomsService.cancelRoom(roomId);
-          const snapshot = room
-            ? this.roomsService.toPublicRoom(room)
-            : this.roomsService.getRoomSnapshot(roomId);
-          this.server.to(roomId).emit("debateCancelled", { roomId });
-          if (snapshot) {
-            this.server.to(roomId).emit("roomUpdated", snapshot);
-          }
-        });
-        if (cancelledIds.length > 0) {
-          this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
+      void this.runCancelExpiredDebates();
+    }, 60_000);
+  }
+
+  private async runCancelExpiredDebates(): Promise<void> {
+    if (this.cancelExpiredDebatesRunning) {
+      this.logger.warn(
+        "Annulation des débats expirés ignorée : exécution précédente encore en cours.",
+      );
+      return;
+    }
+
+    this.cancelExpiredDebatesRunning = true;
+    try {
+      const cancelledIds = await this.debateLifecycleService.cancelExpiredDebates();
+      cancelledIds.forEach((roomId) => {
+        const room = this.roomsService.cancelRoom(roomId);
+        const snapshot = room
+          ? this.roomsService.toPublicRoom(room)
+          : this.roomsService.getRoomSnapshot(roomId);
+        this.server.to(roomId).emit("debateCancelled", { roomId });
+        if (snapshot) {
+          this.server.to(roomId).emit("roomUpdated", snapshot);
         }
       });
-    }, 60_000);
+      if (cancelledIds.length > 0) {
+        this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Échec annulation débats expirés : ${message}`);
+    } finally {
+      this.cancelExpiredDebatesRunning = false;
+    }
   }
 
   onModuleDestroy() {
@@ -100,14 +133,112 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   }
 
   handleDisconnect(client: Socket) {
-    const room = this.roomsService.leaveRoom(client.id);
-    if (!room) {
+    const session = this.roomsService.getSession(client.id);
+    if (!session) {
       this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
       return;
     }
 
-    this.server.to(room.id).emit("roomUpdated", this.roomsService.toPublicRoom(room));
+    if (this.roomsService.shouldUseDisconnectGrace(session)) {
+      this.roomsService.beginDisconnectGrace(client.id, session, (outcome) => {
+        if (outcome.type === "abrupt_leave") {
+          this.emitDebatePresence(outcome.roomId, {
+            kind: "participant_left",
+            actorUserId: outcome.absentUserId,
+            actorDisplayName: outcome.absentDisplayName,
+            message: `${outcome.absentDisplayName} a quitté le débat.`,
+          });
+          this.maybeArmBothAbsentAutoPause(outcome.roomId);
+        }
+        this.broadcastRoomsUpdated();
+      });
+      return;
+    }
+
+    this.finalizeSocketLeave(client.id);
+  }
+
+  private finalizeSocketLeave(socketId: string) {
+    const room = this.roomsService.leaveRoom(socketId);
+    if (!room) {
+      this.broadcastRoomsUpdated();
+      return;
+    }
+
+    const snapshot = this.roomsService.getRoomSnapshot(room.id);
+    if (snapshot) {
+      this.server.to(room.id).emit("roomUpdated", snapshot);
+    }
+    this.broadcastRoomsUpdated();
+  }
+
+  private broadcastRoomsUpdated() {
     this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
+  }
+
+  private maybeArmBothAbsentAutoPause(roomId: string): void {
+    const room = this.roomsService.getRoom(roomId);
+    if (!room || !this.roomsService.isBothParticipantsOffline(room)) {
+      return;
+    }
+
+    this.roomsService.armBothAbsentAutoPause(roomId, () => {
+      void this.runBothAbsentAutoPause(roomId);
+    });
+  }
+
+  private async runBothAbsentAutoPause(roomId: string): Promise<void> {
+    const room = this.roomsService.getRoom(roomId);
+    if (!room || !this.roomsService.isBothParticipantsOffline(room)) {
+      return;
+    }
+
+    const actorUserId =
+      room.creatorUserId ??
+      room.participantSlots?.find(
+        (slot) => slot?.userId && !slot.userId.startsWith("guest:"),
+      )?.userId;
+    if (!actorUserId) {
+      return;
+    }
+
+    const actorSlot = room.participantSlots?.find((slot) => slot?.userId === actorUserId);
+    const actorDisplayName = actorSlot?.displayName ?? "Application";
+
+    const updated = this.roomsService.autoPauseBothAbsentRoom(roomId);
+    if (!updated) {
+      return;
+    }
+
+    try {
+      const turnUserId = this.roomsService.getCurrentTurnUserId(updated);
+      const sessions = this.roomsService.getSessionsInRoom(roomId);
+      await this.debateFinishService.persistRoomMessages(roomId, updated.messages, sessions);
+      await this.debatePresenceService.pauseDebate(roomId, actorUserId, turnUserId);
+      this.emitDebatePresence(roomId, {
+        kind: "paused",
+        actorUserId,
+        actorDisplayName,
+        message:
+          "Le débat a été mis en pause automatiquement : les deux participants sont absents depuis 30 minutes.",
+      });
+      this.broadcastRoomsUpdated();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Pause auto (deux absents) ${roomId} : ${message}`);
+    }
+  }
+
+  private emitDebatePresence(roomId: string, payload: DebatePresenceEvent) {
+    const snapshot = this.roomsService.getRoomSnapshot(roomId);
+    this.server.to(roomId).emit("debatePresence", {
+      roomId,
+      ...payload,
+      snapshot,
+    });
+    if (snapshot) {
+      this.server.to(roomId).emit("roomUpdated", snapshot);
+    }
   }
 
   @SubscribeMessage("subscribeUser")
@@ -132,12 +263,27 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   }
 
   @SubscribeMessage("getRoomState")
-  getRoomState(@MessageBody() payload: GetRoomStatePayload, @ConnectedSocket() client: Socket) {
+  async getRoomState(
+    @MessageBody() payload: GetRoomStatePayload,
+    @ConnectedSocket() client: Socket,
+  ) {
     const roomId = payload?.roomId?.trim();
     if (!roomId) {
       client.emit("errorMessage", { message: "Room invalide." });
       return;
     }
+
+    if (!this.roomsService.roomExists(roomId)) {
+      const restorePayload =
+        await this.debateRestoreService.getDebateRestorePayload(roomId);
+      if (
+        restorePayload &&
+        ["pending", "active", "paused"].includes(restorePayload.status)
+      ) {
+        this.roomsService.ensureRoomFromDb(restorePayload);
+      }
+    }
+
     const snapshot = this.roomsService.getRoomSnapshot(roomId);
     if (snapshot) {
       client.emit("roomUpdated", snapshot);
@@ -217,9 +363,31 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     @ConnectedSocket() client: Socket,
   ) {
     const roomId = payload?.roomId?.trim();
-    if (!roomId || !this.roomsService.roomExists(roomId)) {
-      client.emit("errorMessage", { message: "Room introuvable." });
+    if (!roomId) {
+      client.emit("errorMessage", { message: "Room invalide." });
       return;
+    }
+
+    if (!this.roomsService.roomExists(roomId)) {
+      const restorePayload =
+        await this.debateRestoreService.getDebateRestorePayload(roomId);
+      const joinable =
+        restorePayload &&
+        ["pending", "active", "paused"].includes(restorePayload.status);
+
+      if (joinable) {
+        this.roomsService.ensureRoomFromDb(restorePayload);
+        this.logger.log(`Room ${roomId} restaurée depuis la base pour joinRoom.`);
+      } else {
+        this.logger.warn(
+          `joinRoom refusé pour ${roomId} : room absente en mémoire` +
+            (restorePayload
+              ? ` (statut DB : ${restorePayload.status})`
+              : " (débat absent ou illisible en base)"),
+        );
+        client.emit("errorMessage", { message: "Room introuvable." });
+        return;
+      }
     }
 
     let joinOptions: { username?: string; userId?: string; displayName?: string } = {
@@ -258,20 +426,33 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
         .catch(() => undefined);
     }
 
-    const meta = await this.debateLifecycleService.getDebateMeta(roomId);
+    const meta = await this.debateRestoreService.getDebateMeta(roomId);
     if (meta && room) {
-      this.roomsService.syncFromDbValidation(
-        roomId,
-        meta.validatedAt,
-        meta.opponentJoinedAt,
-      );
+      if (meta.status === "paused") {
+        this.roomsService.syncPauseFromDb(
+          roomId,
+          meta.status,
+          meta.pausedByUserId,
+          meta.resumeRequestedAt,
+          meta.validatedAt,
+          meta.opponentJoinedAt,
+          meta.turnUserId,
+        );
+      } else {
+        this.roomsService.syncFromDbValidation(
+          roomId,
+          meta.validatedAt,
+          meta.opponentJoinedAt,
+        );
+      }
     }
 
     const updatedRoom = this.roomsService.getRoom(roomId);
     let opponentJustJoined = false;
+    const connectedCount = this.roomsService.getConnectedParticipantCount(roomId);
     if (
       updatedRoom &&
-      updatedRoom.participants.length >= 2 &&
+      connectedCount >= 2 &&
       updatedRoom.awaitingValidation &&
       session.role === "participantB" &&
       session.userId &&
@@ -290,7 +471,7 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     }
 
     if (opponentJustJoined) {
-      const metaAfter = await this.debateLifecycleService.getDebateMeta(roomId);
+      const metaAfter = await this.debateRestoreService.getDebateMeta(roomId);
       if (metaAfter) {
         this.roomsService.syncFromDbValidation(
           roomId,
@@ -330,69 +511,400 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     return `user:${userId}`;
   }
 
+  private emitGatewayError(client: Socket, message: string): void {
+    client.emit("errorMessage", { message });
+  }
+
+  private get gatewaySessionDeps(): GatewaySessionDeps {
+    return {
+      authService: this.authService,
+      getSession: (socketId) => this.roomsService.getSession(socketId),
+      emitError: (client, message) => this.emitGatewayError(client, message),
+    };
+  }
+
   @SubscribeMessage("validateDebateStart")
   async validateDebateStart(
     @MessageBody() payload: ValidateDebateStartPayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const session = this.roomsService.getSession(client.id);
-    if (!session) {
-      client.emit("errorMessage", { message: "Vous devez rejoindre une room." });
-      return;
-    }
+    await withAuthenticatedRoomSession(
+      this.gatewaySessionDeps,
+      client,
+      payload,
+      {
+        missingTokenMessage: "Connectez-vous pour démarrer le débat.",
+        allowGuestSession: true,
+      },
+      async ({ client: socket, userId, roomId }) => {
+        try {
+          await this.debateLifecycleService.validateDebateStart(roomId, userId);
+        } catch (err) {
+          this.emitGatewayError(
+            socket,
+            httpExceptionMessage(err, "Impossible de démarrer le débat."),
+          );
+          return;
+        }
 
-    const roomId = payload?.roomId?.trim();
-    if (!roomId || session.roomId !== roomId) {
-      client.emit("errorMessage", { message: "Room invalide." });
-      return;
-    }
+        const room = this.roomsService.startValidatedDebate(roomId);
+        if (!room) {
+          this.emitGatewayError(socket, "Room introuvable.");
+          return;
+        }
 
-    const accessToken = payload?.accessToken?.trim();
-    if (!accessToken) {
-      client.emit("errorMessage", {
-        message: "Connectez-vous pour démarrer le débat.",
-      });
-      return;
-    }
+        const snapshot = this.roomsService.toPublicRoom(room);
+        this.server.to(roomId).emit("debateStarted", snapshot);
+        this.server.to(roomId).emit("roomUpdated", snapshot);
+        this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
+      },
+    );
+  }
 
-    let userId: string;
-    try {
-      userId = (await this.authService.getMe(accessToken)).id;
-    } catch {
-      client.emit("errorMessage", {
-        message: "Session invalide ou expirée.",
-      });
-      return;
-    }
+  @SubscribeMessage("leaveDebate")
+  async leaveDebate(
+    @MessageBody() payload: LeaveDebatePayload,
+    @ConnectedSocket() client: Socket,
+  ) {
+    await withAuthenticatedRoomSession(
+      this.gatewaySessionDeps,
+      client,
+      payload,
+      {
+        validateBeforeAuth: (p) => {
+          if (!p.accessToken?.trim() || (p.action !== "pause" && p.action !== "finish")) {
+            return "Requête invalide.";
+          }
+          return null;
+        },
+      },
+      async ({ client: socket, session, userId, roomId, payload: p }) => {
+        const action = p.action;
+        const room = this.roomsService.getRoom(roomId);
+        if (!room) {
+          this.emitGatewayError(socket, "Room introuvable.");
+          return;
+        }
 
-    if (session.userId && session.userId !== userId) {
-      client.emit("errorMessage", { message: "Session incohérente." });
-      return;
-    }
+        try {
+          this.debatePresenceService.assertCanManagePresence(room, session);
+        } catch (err) {
+          this.emitGatewayError(socket, httpExceptionMessage(err, "Action refusée."));
+          return;
+        }
 
-    try {
-      await this.debateLifecycleService.validateDebateStart(roomId, userId);
-    } catch (err) {
-      const message =
-        err instanceof HttpException
-          ? (err.getResponse() as { message?: string }).message || err.message
-          : "Impossible de démarrer le débat.";
-      client.emit("errorMessage", {
-        message: typeof message === "string" ? message : "Impossible de démarrer le débat.",
-      });
-      return;
-    }
+        this.roomsService.cancelDisconnectGrace(userId, roomId);
 
-    const room = this.roomsService.startValidatedDebate(roomId);
-    if (!room) {
-      client.emit("errorMessage", { message: "Room introuvable." });
-      return;
-    }
+        const meta = await this.debateRestoreService.getDebateMeta(roomId);
+        const waitingAlone =
+          room.participants.length < 2 &&
+          (meta?.status === "pending" || room.status === "waiting") &&
+          (session.role === "participantA" || session.role === "participantB");
 
-    const snapshot = this.roomsService.toPublicRoom(room);
-    this.server.to(roomId).emit("debateStarted", snapshot);
-    this.server.to(roomId).emit("roomUpdated", snapshot);
-    this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
+        if (waitingAlone && action === "finish") {
+          await runEmittingHttpErrors(
+            this.emitGatewayError.bind(this),
+            socket,
+            "Impossible de quitter le débat.",
+            async () => {
+              await this.debateLifecycleService.cancelPendingDebate(roomId);
+              this.roomsService.cancelRoom(roomId);
+              const snapshot = this.roomsService.getRoomSnapshot(roomId);
+              this.server.to(roomId).emit("debateCancelled", { roomId });
+              if (snapshot) {
+                this.server.to(roomId).emit("roomUpdated", snapshot);
+              }
+              socket.leave(roomId);
+              this.finalizeSocketLeave(socket.id);
+              this.broadcastRoomsUpdated();
+            },
+          );
+          return;
+        }
+
+        if (waitingAlone && action === "pause") {
+          this.emitGatewayError(
+            socket,
+            "Impossible de mettre en pause : attendez un adversaire ou quittez le débat pour l'annuler.",
+          );
+          return;
+        }
+
+        if (action === "pause") {
+          await runEmittingHttpErrors(
+            this.emitGatewayError.bind(this),
+            socket,
+            "Impossible de mettre en pause.",
+            async () => {
+              const turnUserId = this.roomsService.getCurrentTurnUserId(room);
+              const sessions = this.roomsService.getSessionsInRoom(roomId);
+              await this.debateFinishService.persistRoomMessages(
+                roomId,
+                room.messages,
+                sessions,
+              );
+              await this.debatePresenceService.pauseDebate(roomId, userId, turnUserId);
+              const updated = this.roomsService.pauseRoom(
+                roomId,
+                userId,
+                session.displayName,
+                socket.id,
+                turnUserId,
+              );
+              if (updated) {
+                this.emitDebatePresence(roomId, {
+                  kind: "paused",
+                  actorUserId: userId,
+                  actorDisplayName: session.displayName,
+                  message: `${session.displayName} a mis le débat en pause.`,
+                });
+              }
+              socket.leave(roomId);
+              this.broadcastRoomsUpdated();
+            },
+          );
+          return;
+        }
+
+        await runEmittingHttpErrors(
+          this.emitGatewayError.bind(this),
+          socket,
+          "Impossible de terminer le débat.",
+          async () => {
+            const sessions = this.roomsService.getSessionsInRoom(roomId);
+            const { endedAt } = await this.debateFinishService.finishDebate(
+              roomId,
+              room,
+              sessions,
+            );
+            await this.debatePresenceService.finishDebateByUser(roomId, userId, endedAt);
+            this.roomsService.finishRoom(roomId, endedAt, userId);
+            const snapshot = this.roomsService.getRoomSnapshot(roomId);
+
+            this.emitDebatePresence(roomId, {
+              kind: "finished",
+              actorUserId: userId,
+              actorDisplayName: session.displayName,
+              message: `${session.displayName} a terminé le débat.`,
+            });
+
+            this.server.to(roomId).emit("debateEnded", { roomId, endedAt, snapshot });
+            socket.leave(roomId);
+            this.broadcastRoomsUpdated();
+          },
+        );
+      },
+    );
+  }
+
+  @SubscribeMessage("requestResumeDebate")
+  async requestResumeDebate(
+    @MessageBody() payload: RequestResumeDebatePayload,
+    @ConnectedSocket() client: Socket,
+  ) {
+    await withAuthenticatedRoomSession(
+      this.gatewaySessionDeps,
+      client,
+      payload,
+      { missingTokenMessage: "Connectez-vous pour reprendre le débat." },
+      async ({ client: socket, session, userId, roomId }) => {
+        const room = this.roomsService.getRoom(roomId);
+        if (!room) {
+          this.emitGatewayError(socket, "Room introuvable.");
+          return;
+        }
+
+        const dbRow = await this.debateRestoreService.getDebateAuthRow(roomId);
+        try {
+          this.debatePresenceService.assertCanRequestResume(room, session, dbRow);
+        } catch (err) {
+          this.emitGatewayError(socket, httpExceptionMessage(err, "Action refusée."));
+          return;
+        }
+
+        await runEmittingHttpErrors(
+          this.emitGatewayError.bind(this),
+          socket,
+          "Impossible de demander la reprise.",
+          async () => {
+            await this.debateLifecycleService.requestResumeDebate(roomId, userId);
+            const updated = this.roomsService.requestResume(roomId, userId);
+            if (updated) {
+              this.emitDebatePresence(roomId, {
+                kind: "resume_requested",
+                actorUserId: userId,
+                actorDisplayName: session.displayName,
+                message: `${session.displayName} souhaite reprendre le débat. L'autre participant doit valider.`,
+              });
+              this.broadcastRoomsUpdated();
+            }
+          },
+        );
+      },
+    );
+  }
+
+  @SubscribeMessage("validateResumeDebate")
+  async validateResumeDebate(
+    @MessageBody() payload: ValidateResumeDebatePayload,
+    @ConnectedSocket() client: Socket,
+  ) {
+    await withAuthenticatedRoomSession(
+      this.gatewaySessionDeps,
+      client,
+      payload,
+      { missingTokenMessage: "Connectez-vous pour valider la reprise." },
+      async ({ client: socket, session, userId, roomId }) => {
+        let room = this.roomsService.getRoom(roomId);
+        if (!room) {
+          const restorePayload =
+            await this.debateRestoreService.getDebateRestorePayload(roomId);
+          if (restorePayload) {
+            this.roomsService.ensureRoomFromDb(restorePayload);
+            room = this.roomsService.getRoom(roomId);
+          }
+        }
+        if (!room) {
+          this.emitGatewayError(socket, "Room introuvable.");
+          return;
+        }
+
+        const meta = await this.debateRestoreService.getDebateMeta(roomId);
+        if (meta?.status === "paused") {
+          this.roomsService.syncPauseFromDb(
+            roomId,
+            meta.status,
+            meta.pausedByUserId,
+            meta.resumeRequestedAt,
+            meta.validatedAt,
+            meta.opponentJoinedAt,
+            meta.turnUserId,
+          );
+          room = this.roomsService.getRoom(roomId) ?? room;
+        }
+
+        const dbRow = await this.debateRestoreService.getDebateAuthRow(roomId);
+        try {
+          this.debatePresenceService.assertCanValidateResume(room, session, dbRow);
+        } catch (err) {
+          this.emitGatewayError(socket, httpExceptionMessage(err, "Action refusée."));
+          return;
+        }
+
+        const metaForResume = await this.debateRestoreService.getDebateMeta(roomId);
+        const turnUserId = metaForResume?.turnUserId ?? room.turnUserId ?? null;
+
+        await runEmittingHttpErrors(
+          this.emitGatewayError.bind(this),
+          socket,
+          "Impossible de reprendre le débat.",
+          async () => {
+            await this.debateLifecycleService.validateResumeDebate(roomId, userId);
+            const updated = this.roomsService.validateResume(roomId, turnUserId);
+            if (updated) {
+              const snapshot = this.roomsService.toPublicRoom(updated);
+              this.emitDebatePresence(roomId, {
+                kind: "resumed",
+                actorUserId: userId,
+                actorDisplayName: session.displayName,
+                message: `${session.displayName} a validé la reprise du débat.`,
+              });
+              this.server.to(roomId).emit("debateStarted", snapshot);
+              this.broadcastRoomsUpdated();
+            }
+          },
+        );
+      },
+    );
+  }
+
+  @SubscribeMessage("resolveAbsentDebate")
+  async resolveAbsentDebate(
+    @MessageBody() payload: ResolveAbsentDebatePayload,
+    @ConnectedSocket() client: Socket,
+  ) {
+    await withAuthenticatedRoomSession(
+      this.gatewaySessionDeps,
+      client,
+      payload,
+      {
+        validateBeforeAuth: (p) => {
+          if (!p.accessToken?.trim() || (p.action !== "pause" && p.action !== "finish")) {
+            return "Requête invalide.";
+          }
+          return null;
+        },
+      },
+      async ({ client: socket, session, userId, roomId, payload: p }) => {
+        const action = p.action;
+        const room = this.roomsService.getRoom(roomId);
+        if (!room?.absentParticipantUserId) {
+          this.emitGatewayError(socket, "Aucun participant absent à traiter.");
+          return;
+        }
+
+        if (action === "pause") {
+          const absentName = room.absentParticipantDisplayName ?? "l'autre participant";
+          await runEmittingHttpErrors(
+            this.emitGatewayError.bind(this),
+            socket,
+            "Impossible de mettre en pause.",
+            async () => {
+              const turnUserId = this.roomsService.getCurrentTurnUserId(room);
+              const sessions = this.roomsService.getSessionsInRoom(roomId);
+              await this.debateFinishService.persistRoomMessages(
+                roomId,
+                room.messages,
+                sessions,
+              );
+              await this.debatePresenceService.pauseDebate(roomId, userId, turnUserId);
+              this.roomsService.resolveAbsentParticipant(
+                roomId,
+                "pause",
+                userId,
+                session.displayName,
+              );
+              this.emitDebatePresence(roomId, {
+                kind: "paused",
+                actorUserId: userId,
+                actorDisplayName: session.displayName,
+                message: `Le débat a été mis en pause suite au départ de ${absentName}.`,
+              });
+              this.broadcastRoomsUpdated();
+            },
+          );
+          return;
+        }
+
+        const absentName = room.absentParticipantDisplayName ?? "l'autre participant";
+        await runEmittingHttpErrors(
+          this.emitGatewayError.bind(this),
+          socket,
+          "Impossible de terminer le débat.",
+          async () => {
+            const sessions = this.roomsService.getSessionsInRoom(roomId);
+            const { endedAt } = await this.debateFinishService.finishDebate(
+              roomId,
+              room,
+              sessions,
+            );
+            await this.debatePresenceService.finishDebateByUser(roomId, userId, endedAt);
+            this.roomsService.finishRoom(roomId, endedAt, userId);
+            const snapshot = this.roomsService.getRoomSnapshot(roomId);
+
+            this.emitDebatePresence(roomId, {
+              kind: "finished",
+              actorUserId: userId,
+              actorDisplayName: session.displayName,
+              message: `Le débat a été terminé suite au départ de ${absentName}.`,
+            });
+
+            this.server.to(roomId).emit("debateEnded", { roomId, endedAt, snapshot });
+            this.broadcastRoomsUpdated();
+          },
+        );
+      },
+    );
   }
 
   @SubscribeMessage("endDebate")
@@ -400,86 +912,56 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     @MessageBody() payload: EndDebatePayload,
     @ConnectedSocket() client: Socket,
   ) {
-    const session = this.roomsService.getSession(client.id);
-    if (!session) {
-      client.emit("errorMessage", { message: "Vous devez rejoindre une room." });
-      return;
-    }
+    await withAuthenticatedRoomSession(
+      this.gatewaySessionDeps,
+      client,
+      payload,
+      { missingTokenMessage: "Connectez-vous pour mettre fin au débat." },
+      async ({ client: socket, session, userId, roomId }) => {
+        const room = this.roomsService.getRoom(roomId);
+        if (!room) {
+          this.emitGatewayError(socket, "Room introuvable.");
+          return;
+        }
 
-    const roomId = payload?.roomId?.trim();
-    if (!roomId || session.roomId !== roomId) {
-      client.emit("errorMessage", { message: "Room invalide." });
-      return;
-    }
+        try {
+          this.debateFinishService.assertCanEndDebate(room, session);
+        } catch (err) {
+          this.emitGatewayError(socket, httpExceptionMessage(err, "Action refusée."));
+          return;
+        }
 
-    const accessToken = payload?.accessToken?.trim();
-    if (!accessToken) {
-      client.emit("errorMessage", {
-        message: "Connectez-vous pour mettre fin au débat.",
-      });
-      return;
-    }
+        await runEmittingHttpErrors(
+          this.emitGatewayError.bind(this),
+          socket,
+          "Impossible de terminer le débat.",
+          async () => {
+            const sessions = this.roomsService.getSessionsInRoom(roomId);
+            const { endedAt } = await this.debateFinishService.finishDebate(
+              roomId,
+              room,
+              sessions,
+            );
+            this.roomsService.finishRoom(roomId, endedAt, userId);
+            const snapshot = this.roomsService.getRoomSnapshot(roomId);
 
-    let userId: string;
-    try {
-      userId = (await this.authService.getMe(accessToken)).id;
-    } catch {
-      client.emit("errorMessage", {
-        message: "Session invalide ou expirée.",
-      });
-      return;
-    }
+            this.emitDebatePresence(roomId, {
+              kind: "finished",
+              actorUserId: userId,
+              actorDisplayName: session.displayName,
+              message: `${session.displayName} a terminé le débat.`,
+            });
 
-    if (session.userId && session.userId !== userId) {
-      client.emit("errorMessage", { message: "Session incohérente." });
-      return;
-    }
-
-    const room = this.roomsService.getRoom(roomId);
-    if (!room) {
-      client.emit("errorMessage", { message: "Room introuvable." });
-      return;
-    }
-
-    try {
-      this.debateFinishService.assertCanEndDebate(room, session);
-    } catch (err) {
-      const message =
-        err instanceof HttpException
-          ? (err.getResponse() as { message?: string }).message || err.message
-          : "Action refusée.";
-      client.emit("errorMessage", {
-        message: typeof message === "string" ? message : "Action refusée.",
-      });
-      return;
-    }
-
-    try {
-      const sessions = this.roomsService.getSessionsInRoom(roomId);
-      const { endedAt } = await this.debateFinishService.finishDebate(
-        roomId,
-        room,
-        sessions,
-      );
-      this.roomsService.finishRoom(roomId, endedAt);
-      const snapshot = this.roomsService.getRoomSnapshot(roomId);
-
-      this.server.to(roomId).emit("debateEnded", {
-        roomId,
-        endedAt,
-        snapshot,
-      });
-      this.server.to(roomId).emit("roomUpdated", snapshot);
-      this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
-    } catch (err) {
-      const message =
-        err instanceof HttpException
-          ? (err.getResponse() as { message?: string }).message || err.message
-          : "Impossible de terminer le débat.";
-      client.emit("errorMessage", {
-        message: typeof message === "string" ? message : "Impossible de terminer le débat.",
-      });
-    }
+            this.server.to(roomId).emit("debateEnded", {
+              roomId,
+              endedAt,
+              snapshot,
+            });
+            this.broadcastRoomsUpdated();
+          },
+        );
+      },
+    );
   }
 
   @SubscribeMessage("sendMessage")

@@ -5,6 +5,9 @@ import { DebateConclusionForm } from "@/components/DebateConclusionForm";
 import { DebateConclusionsSection } from "@/components/DebateConclusionsSection";
 import { DebateNoteSection } from "@/components/DebateNoteSection";
 import { EndDebateConfirmModal } from "@/components/EndDebateConfirmModal";
+import { LeaveDebateModal } from "@/components/LeaveDebateModal";
+import { ParticipantAbsentModal } from "@/components/ParticipantAbsentModal";
+import { PauseStateBanner } from "@/components/PauseStateBanner";
 import { ParticipantPill } from "@/components/ParticipantPill";
 import { DebateProgress } from "@/components/ui/DebateProgress";
 import { DebateThread } from "@/components/ui/DebateThread";
@@ -14,7 +17,7 @@ import { DebateDetail } from "@/lib/debate";
 import { rosterToParticipants } from "@/lib/participant-roster";
 import { fetchDebate } from "@/lib/debates-api";
 import { getSocket } from "@/lib/socket";
-import { RoomSnapshot, UserRole } from "@/lib/types";
+import { DebatePresencePayload, RoomSnapshot, UserRole } from "@/lib/types";
 import { useAuthSession } from "@/lib/useAuthSession";
 
 interface DebateRoomClientProps {
@@ -35,6 +38,14 @@ interface ModerationWarnPayload {
   warnToken: string;
   message: string;
 }
+
+type PendingSocketAction =
+  | "validateStart"
+  | "endDebate"
+  | "leaveDebate"
+  | "requestResume"
+  | "validateResume"
+  | "resolveAbsent";
 
 function isMatchingRoomSnapshot(
   snapshot: RoomSnapshot | null | undefined,
@@ -57,9 +68,39 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [endModalOpen, setEndModalOpen] = useState(false);
   const [endingDebate, setEndingDebate] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [resolveAbsentLoading, setResolveAbsentLoading] = useState(false);
+  const [presenceMessage, setPresenceMessage] = useState<string | null>(null);
   const [validatingStart, setValidatingStart] = useState(false);
+  const [resumeLoading, setResumeLoading] = useState(false);
   const pendingTextRef = useRef<string | null>(null);
+  const pendingActionRef = useRef<PendingSocketAction | null>(null);
   const displayNameRef = useRef(displayName);
+
+  const clearPendingActionLoader = useCallback(() => {
+    switch (pendingActionRef.current) {
+      case "validateStart":
+        setValidatingStart(false);
+        break;
+      case "endDebate":
+        setEndingDebate(false);
+        break;
+      case "leaveDebate":
+        setLeaveLoading(false);
+        break;
+      case "requestResume":
+      case "validateResume":
+        setResumeLoading(false);
+        break;
+      case "resolveAbsent":
+        setResolveAbsentLoading(false);
+        break;
+      default:
+        break;
+    }
+    pendingActionRef.current = null;
+  }, []);
 
   useEffect(() => {
     displayNameRef.current = displayName;
@@ -67,11 +108,21 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
 
   const isCancelled =
     room?.status === "cancelled" || dbDebate?.status === "cancelled";
+  const isPaused = room?.status === "paused" || dbDebate?.status === "paused";
   const isFinished =
     room?.status === "finished" ||
     dbDebate?.status === "finished" ||
     isCancelled;
   const isParticipant = role === "participantA" || role === "participantB";
+  const absentPeer =
+    room?.absentParticipantUserId &&
+    room.absentParticipantUserId !== sessionUserId
+      ? {
+          userId: room.absentParticipantUserId,
+          displayName: room.absentParticipantDisplayName ?? "L'autre participant",
+        }
+      : null;
+  const showAbsentModal = Boolean(absentPeer && isParticipant && !isFinished && !isPaused);
   const awaitingValidation =
     !isFinished &&
     (room?.awaitingValidation === true ||
@@ -82,8 +133,42 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       sessionUserId === room?.creatorUserId);
   const debateIsLive =
     !isFinished &&
+    !isPaused &&
+    !absentPeer &&
     !awaitingValidation &&
     (room?.debateValidated === true || dbDebate?.status === "active");
+  const pausedByUserId = room?.pausedByUserId ?? dbDebate?.pausedByUserId ?? null;
+  const resumeRequestedAt = room?.resumeRequestedAt ?? dbDebate?.resumeRequestedAt ?? null;
+  const isPausedByMe =
+    isPaused && sessionUserId !== null && pausedByUserId === sessionUserId;
+  const awaitingResumeValidation = isPaused && Boolean(resumeRequestedAt);
+  const canValidateResume =
+    isPaused &&
+    isParticipant &&
+    !isPausedByMe &&
+    awaitingResumeValidation;
+  const waitingForOpponent =
+    !isFinished &&
+    !isCancelled &&
+    !isPaused &&
+    (room?.participants ?? 0) < 2;
+  const aloneWaiting =
+    isParticipant &&
+    !isPaused &&
+    !isCancelled &&
+    !isFinished &&
+    dbDebate !== null &&
+    !dbDebate.opponentJoinedAt &&
+    (room?.participants ?? 0) < 2;
+  const canQuitVoluntarily =
+    isParticipant &&
+    !isFinished &&
+    !isCancelled &&
+    (debateIsLive ||
+      awaitingValidation ||
+      waitingForOpponent ||
+      isPaused ||
+      absentPeer !== null);
 
   const refreshDebate = useCallback(async () => {
     try {
@@ -122,6 +207,10 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     const onRoomUpdated = (snapshot: RoomSnapshot | null) => {
       if (!isMatchingRoomSnapshot(snapshot, roomId)) return;
       setRoom(snapshot);
+      if (snapshot.status === "paused") {
+        setLeaveModalOpen(false);
+        setLeaveLoading(false);
+      }
       applyAwaitingValidationFromSocket(snapshot);
       if (snapshot.remainingSeconds > 0) {
         setRemainingSeconds(snapshot.remainingSeconds);
@@ -143,16 +232,22 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       if (payload.roomId !== roomId) return;
       if (payload.snapshot) setRoom(payload.snapshot);
       setEndModalOpen(false);
+      pendingActionRef.current = null;
       setEndingDebate(false);
       void refreshDebate();
     };
 
     const onError = (payload: { message: string; code?: string }) => {
-      setModerationWarn(null);
+      if (payload.code === "MODERATION_BLOCK") {
+        setModerationWarn(null);
+        setError(payload.message);
+        setErrorIsBlock(true);
+        return;
+      }
+
       setError(payload.message);
-      setErrorIsBlock(payload.code === "MODERATION_BLOCK");
-      setEndingDebate(false);
-      setValidatingStart(false);
+      setErrorIsBlock(false);
+      clearPendingActionLoader();
     };
 
     const onModerationWarn = (payload: ModerationWarnPayload) => {
@@ -179,7 +274,9 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     const onDebateStarted = (snapshot: RoomSnapshot | null) => {
       if (!isMatchingRoomSnapshot(snapshot, roomId)) return;
       setRoom(snapshot);
+      pendingActionRef.current = null;
       setValidatingStart(false);
+      setResumeLoading(false);
       void refreshDebate();
     };
 
@@ -188,12 +285,32 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       void refreshDebate();
     };
 
+    const onDebatePresence = (payload: DebatePresencePayload) => {
+      if (payload.roomId !== roomId) return;
+      if (payload.snapshot && isMatchingRoomSnapshot(payload.snapshot, roomId)) {
+        setRoom(payload.snapshot);
+      }
+      setPresenceMessage(payload.message);
+      void refreshDebate();
+      if (payload.kind === "finished" || payload.kind === "paused") {
+        setLeaveModalOpen(false);
+        pendingActionRef.current = null;
+        setLeaveLoading(false);
+        setResolveAbsentLoading(false);
+      }
+      if (payload.kind === "resume_requested" || payload.kind === "resumed") {
+        pendingActionRef.current = null;
+        setResumeLoading(false);
+      }
+    };
+
     socket.on("joinedRoom", onJoinedRoom);
     socket.on("roomUpdated", onRoomUpdated);
     socket.on("debateEnded", onDebateEnded);
     socket.on("debateStarted", onDebateStarted);
     socket.on("awaitingValidation", onAwaitingValidation);
     socket.on("debateCancelled", onDebateCancelled);
+    socket.on("debatePresence", onDebatePresence);
     socket.on("errorMessage", onError);
     socket.on("moderationWarn", onModerationWarn);
     socket.on("tick", onTick);
@@ -205,11 +322,12 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       socket.off("debateStarted", onDebateStarted);
       socket.off("awaitingValidation", onAwaitingValidation);
       socket.off("debateCancelled", onDebateCancelled);
+      socket.off("debatePresence", onDebatePresence);
       socket.off("errorMessage", onError);
       socket.off("moderationWarn", onModerationWarn);
       socket.off("tick", onTick);
     };
-  }, [roomId, refreshDebate]);
+  }, [roomId, refreshDebate, clearPendingActionLoader]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -241,8 +359,6 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     setRemainingSeconds(room?.remainingSeconds ?? 0);
   }, [room?.remainingSeconds]);
 
-  const waitingForOpponent =
-    !isFinished && !isCancelled && (room?.participants ?? 0) < 2;
   const isActiveSpeaker = useMemo(
     () =>
       debateIsLive &&
@@ -261,6 +377,26 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       return "Ce débat a été fermé faute de participant dans le délai imparti.";
     }
     if (isFinished) return "Débat terminé.";
+    if (isPaused) {
+      if (isPausedByMe) {
+        if (awaitingResumeValidation) {
+          return "Reprise demandée : en attente de validation par l'autre participant.";
+        }
+        return "Débat en pause. Vous pouvez demander la reprise lorsque vous êtes prêt.";
+      }
+      if (canValidateResume) {
+        const by = room?.pausedByDisplayName ?? "L'autre participant";
+        return `${by} souhaite reprendre le débat. Validez pour relancer les échanges.`;
+      }
+      const by = room?.pausedByDisplayName ?? "Un participant";
+      return `Débat en pause (par ${by}).`;
+    }
+    if (absentPeer) {
+      return `${absentPeer.displayName} a quitté le débat. Choisissez de mettre en pause ou de terminer.`;
+    }
+    if (presenceMessage && !debateIsLive) {
+      return presenceMessage;
+    }
     if (waitingForOpponent) {
       return isParticipant
         ? "En attente d'un second participant."
@@ -277,6 +413,13 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   }, [
     isCancelled,
     isFinished,
+    isPaused,
+    isPausedByMe,
+    awaitingResumeValidation,
+    canValidateResume,
+    absentPeer,
+    presenceMessage,
+    debateIsLive,
     waitingForOpponent,
     awaitingValidation,
     isCreator,
@@ -356,6 +499,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       setError("Connectez-vous pour démarrer le débat.");
       return;
     }
+    pendingActionRef.current = "validateStart";
     setValidatingStart(true);
     getSocket().emit("validateDebateStart", { roomId, accessToken });
   }
@@ -366,8 +510,57 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       setError("Connectez-vous pour mettre fin au débat.");
       return;
     }
+    pendingActionRef.current = "endDebate";
     setEndingDebate(true);
     getSocket().emit("endDebate", { roomId, accessToken });
+  }
+
+  function emitLeaveDebate(action: "pause" | "finish") {
+    const accessToken = getStoredAuth()?.session.accessToken;
+    if (!accessToken) {
+      setError("Connectez-vous pour quitter le débat.");
+      return;
+    }
+    pendingActionRef.current = "leaveDebate";
+    setLeaveLoading(true);
+    setError("");
+    getSocket().emit("leaveDebate", { roomId, accessToken, action });
+  }
+
+  function confirmRequestResume() {
+    const accessToken = getStoredAuth()?.session.accessToken;
+    if (!accessToken) {
+      setError("Connectez-vous pour reprendre le débat.");
+      return;
+    }
+    pendingActionRef.current = "requestResume";
+    setResumeLoading(true);
+    setError("");
+    getSocket().emit("requestResumeDebate", { roomId, accessToken });
+  }
+
+  function confirmValidateResume() {
+    const accessToken = getStoredAuth()?.session.accessToken;
+    if (!accessToken) {
+      setError("Connectez-vous pour valider la reprise.");
+      return;
+    }
+    pendingActionRef.current = "validateResume";
+    setResumeLoading(true);
+    setError("");
+    getSocket().emit("validateResumeDebate", { roomId, accessToken });
+  }
+
+  function emitResolveAbsent(action: "pause" | "finish") {
+    const accessToken = getStoredAuth()?.session.accessToken;
+    if (!accessToken) {
+      setError("Connectez-vous pour continuer.");
+      return;
+    }
+    pendingActionRef.current = "resolveAbsent";
+    setResolveAbsentLoading(true);
+    setError("");
+    getSocket().emit("resolveAbsentDebate", { roomId, accessToken, action });
   }
 
   return (
@@ -380,6 +573,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
             {isFinished && !isCancelled ? (
               <span className="finished-badge">Débat terminé</span>
             ) : null}
+            {isPaused ? <span className="finished-badge">En pause</span> : null}
             {debateIsLive ? <span className="live-badge">En direct</span> : null}
           </div>
           <h2>{room?.title || dbDebate?.title || `Room ${roomId}`}</h2>
@@ -419,13 +613,22 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
         <div className="chat-role-box">
           <span className={`role-badge ${role}`}>{roleLabel}</span>
           <span className="muted">{displayName}</span>
+          {canQuitVoluntarily ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm end-debate-btn"
+              onClick={() => setLeaveModalOpen(true)}
+            >
+              Quitter le débat
+            </button>
+          ) : null}
           {isParticipant && debateIsLive ? (
             <button
               type="button"
               className="btn btn-ghost btn-sm end-debate-btn"
               onClick={() => setEndModalOpen(true)}
             >
-              Mettre fin au débat
+              Terminer (les deux)
             </button>
           ) : null}
         </div>
@@ -475,6 +678,20 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
           <p>Le créateur du débat doit valider le début avant que les tours ne commencent.</p>
         </section>
       ) : null}
+
+      <PauseStateBanner
+        isPaused={isPaused}
+        isPausedByMe={isPausedByMe}
+        awaitingResumeValidation={awaitingResumeValidation}
+        canValidateResume={canValidateResume}
+        pausedByDisplayName={room?.pausedByDisplayName}
+        presenceMessage={presenceMessage}
+        showAbsentModal={showAbsentModal}
+        isFinished={isFinished}
+        resumeLoading={resumeLoading}
+        onRequestResume={confirmRequestResume}
+        onValidateResume={confirmValidateResume}
+      />
 
       {moderationWarn && debateIsLive ? (
         <section className="card moderation-warn-banner" role="alert">
@@ -557,12 +774,34 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
         <p className="muted">Connectez-vous pour rédiger votre conclusion.</p>
       ) : null}
 
+      <LeaveDebateModal
+        open={leaveModalOpen}
+        loading={leaveLoading}
+        cancelOnly={aloneWaiting}
+        onPause={() => emitLeaveDebate("pause")}
+        onFinish={() => emitLeaveDebate("finish")}
+        onCancel={() => {
+          setLeaveLoading(false);
+          setLeaveModalOpen(false);
+        }}
+      />
+
       <EndDebateConfirmModal
         open={endModalOpen}
         loading={endingDebate}
         onConfirm={confirmEndDebate}
         onCancel={() => setEndModalOpen(false)}
       />
+
+      {absentPeer ? (
+        <ParticipantAbsentModal
+          open={showAbsentModal}
+          absentDisplayName={absentPeer.displayName}
+          loading={resolveAbsentLoading}
+          onPause={() => emitResolveAbsent("pause")}
+          onFinish={() => emitResolveAbsent("finish")}
+        />
+      ) : null}
     </div>
   );
 }

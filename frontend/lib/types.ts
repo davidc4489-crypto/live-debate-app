@@ -1,3 +1,10 @@
+import type {
+  DebatePresenceEvent,
+  DebatePresenceKind,
+} from "../../shared/debate-presence";
+
+export type { DebatePresenceKind };
+
 export type UserRole = "participantA" | "participantB" | "spectator";
 
 export interface DebateMessage {
@@ -6,7 +13,7 @@ export interface DebateMessage {
   text: string;
 }
 
-export type RoomStatus = "waiting" | "active" | "finished" | "cancelled";
+export type RoomStatus = "waiting" | "active" | "finished" | "cancelled" | "paused";
 
 export interface RoomParticipantSlot {
   userId: string | null;
@@ -31,4 +38,14 @@ export interface RoomSnapshot {
   awaitingValidation?: boolean;
   debateValidated?: boolean;
   creatorUserId?: string | null;
+  pausedByUserId?: string | null;
+  pausedByDisplayName?: string | null;
+  resumeRequestedAt?: string | null;
+  absentParticipantUserId?: string | null;
+  absentParticipantDisplayName?: string | null;
+}
+
+export interface DebatePresencePayload extends DebatePresenceEvent {
+  roomId: string;
+  snapshot?: RoomSnapshot | null;
 }

@@ -869,6 +869,15 @@
     @apply bg-brand-light/50;
   }
 
+  .leave-debate-actions {
+    @apply mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap;
+  }
+
+  .leave-debate-modal,
+  .participant-absent-modal {
+    @apply max-w-md;
+  }
+
   .topbar-profile-wrap {
     @apply relative;
   }

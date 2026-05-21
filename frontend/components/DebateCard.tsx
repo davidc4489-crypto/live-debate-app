@@ -14,6 +14,7 @@ interface DebateCardProps {
   isFavorite?: boolean;
   showFavorite?: boolean;
   favoriteLoading?: boolean;
+  currentUserId?: string | null;
   onFavoriteToggle?: (debateId: string, nextFavorite: boolean) => void;
 }
 
@@ -24,7 +25,19 @@ export function DebateCard({
   showFavorite = false,
   favoriteLoading = false,
   onFavoriteToggle,
+  currentUserId = null,
 }: DebateCardProps) {
+  const ctaLabel = getDebateCtaLabel(debate.status, {
+    currentUserId,
+    pausedByUserId: debate.pausedByUserId,
+    resumeRequestedAt: debate.resumeRequestedAt,
+    participants: debate.participants,
+  });
+  const ctaIsPrimary =
+    debate.status !== "finished" &&
+    debate.status !== "cancelled" &&
+    (debate.status !== "paused" || ctaLabel !== "Voir le débat");
+
   return (
     <article className={`debate-card reveal ${trending ? "trending" : ""}`}>
       <div className="card-topline">
@@ -32,6 +45,7 @@ export function DebateCard({
           <span className="theme-badge">{debate.theme}</span>
           {debate.isLive ? <span className="live-badge">LIVE</span> : null}
           {debate.status === "finished" ? <span className="finished-badge">Terminé</span> : null}
+          {debate.status === "paused" ? <span className="finished-badge">En pause</span> : null}
           {trending ? <span className="trend-badge">À la une</span> : null}
         </div>
         {showFavorite && onFavoriteToggle ? (
@@ -64,9 +78,9 @@ export function DebateCard({
 
       <Link
         href={`/room/${debate.id}`}
-        className={`btn ${debate.status === "finished" ? "btn-ghost" : "btn-primary"}`}
+        className={`btn ${ctaIsPrimary ? "btn-primary" : "btn-ghost"}`}
       >
-        {getDebateCtaLabel(debate.status)}
+        {ctaLabel}
       </Link>
     </article>
   );

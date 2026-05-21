@@ -28,7 +28,7 @@ export interface ProfileDebate {
   id: string;
   title: string;
   theme: string;
-  status: "pending" | "active" | "finished";
+  status: "pending" | "active" | "finished" | "cancelled" | "paused";
   createdAt: string;
   endedAt: string | null;
 }

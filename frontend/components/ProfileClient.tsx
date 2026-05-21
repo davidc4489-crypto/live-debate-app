@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { FollowButton } from "@/components/FollowButton";
 import { ProfileFollowingSection } from "@/components/ProfileFollowingSection";
-import { formatDebateDate, getDebateCtaLabel } from "@/lib/debate";
+import { DebateStatus, formatDebateDate, getDebateCtaLabel } from "@/lib/debate";
+import { useAuthSession } from "@/lib/useAuthSession";
 import {
   formatMemberSince,
   getProfileScoreLabel,
@@ -31,6 +32,7 @@ function statusLabel(status: string): string {
   if (status === "active") return "En cours";
   if (status === "finished") return "Terminé";
   if (status === "cancelled") return "Annulé";
+  if (status === "paused") return "En pause";
   return "En attente";
 }
 
@@ -40,6 +42,7 @@ export function ProfileClient({
   canFollow = false,
   onFollowChange,
 }: ProfileClientProps) {
+  const { user: authUser } = useAuthSession();
   const { user, interests, stats, debates, followStats } = profile;
   const scoreLabel = useMemo(() => getProfileScoreLabel(stats.profileScore), [stats.profileScore]);
 
@@ -164,7 +167,9 @@ export function ProfileClient({
                   <p className="muted">{formatDebateDate(debate.createdAt)}</p>
                 </div>
                 <Link href={`/room/${debate.id}`} className="btn btn-ghost btn-sm">
-                  {getDebateCtaLabel(debate.status)}
+                  {getDebateCtaLabel(debate.status as DebateStatus, {
+                    currentUserId: authUser?.id ?? null,
+                  })}
                 </Link>
               </li>
             ))}

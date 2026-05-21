@@ -84,7 +84,7 @@ export class DebateFinishService {
     );
 
     await this.syncParticipants(debateId, participantSessions);
-    await this.syncMessages(debateId, room.messages, participantSessions);
+    await this.persistRoomMessages(debateId, room.messages, participantSessions);
 
     const { error: updateError } = await supabase
       .from("debates")
@@ -129,7 +129,7 @@ export class DebateFinishService {
     }
   }
 
-  private async syncMessages(
+  async persistRoomMessages(
     debateId: string,
     messages: DebateMessage[],
     participantSessions: SocketSession[],

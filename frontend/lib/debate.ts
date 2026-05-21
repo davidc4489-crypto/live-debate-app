@@ -15,7 +15,7 @@ export const debateThemes: DebateTheme[] = [
   "Économie",
 ];
 
-export type DebateStatus = "pending" | "active" | "finished" | "cancelled";
+export type DebateStatus = "pending" | "active" | "finished" | "cancelled" | "paused";
 
 export interface DebateParticipant {
   userId: string | null;
@@ -33,11 +33,46 @@ export interface DebateListItem {
   createdAt: string;
   status: DebateStatus;
   isLive: boolean;
+  pausedByUserId?: string | null;
+  resumeRequestedAt?: string | null;
 }
 
-export function getDebateCtaLabel(status: DebateStatus): string {
+export interface DebateCtaOptions {
+  currentUserId?: string | null;
+  pausedByUserId?: string | null;
+  resumeRequestedAt?: string | null;
+  participants?: [DebateParticipant, DebateParticipant];
+}
+
+function isDebateParticipant(
+  userId: string | null | undefined,
+  participants?: [DebateParticipant, DebateParticipant],
+): boolean {
+  if (!userId || !participants) return false;
+  return participants.some((p) => p.userId === userId);
+}
+
+export function getDebateCtaLabel(status: DebateStatus, options?: DebateCtaOptions): string {
   if (status === "finished") return "Revoir le débat";
   if (status === "cancelled") return "Voir le sujet";
+
+  if (status === "paused") {
+    const userId = options?.currentUserId ?? null;
+    const pausedBy = options?.pausedByUserId ?? null;
+    const resumeRequested = Boolean(options?.resumeRequestedAt);
+
+    if (!isDebateParticipant(userId, options?.participants)) {
+      return "Voir le débat";
+    }
+    if (userId && pausedBy === userId) {
+      return "Reprendre le débat";
+    }
+    if (resumeRequested) {
+      return "Valider la reprise";
+    }
+    return "Débat en pause";
+  }
+
   return "Rejoindre";
 }
 
@@ -82,6 +117,8 @@ export interface DebateDetail {
   expiresAt: string | null;
   validatedAt: string | null;
   opponentJoinedAt: string | null;
+  pausedByUserId?: string | null;
+  resumeRequestedAt?: string | null;
   participants: [DebateParticipant, DebateParticipant];
   messages: DebateMessage[];
   conclusions: DebateConclusion[];
