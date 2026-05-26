@@ -121,6 +121,8 @@ export async function fetchScheduledDebates(): Promise<ScheduledDebateListItem[]
 export async function createProposedDebate(
   title: string,
   turnDuration: 180 | 300 | 600,
+  creatorStance?: "for" | "against",
+  opponentMode: "human" | "ai" = "human",
 ): Promise<{ id: string; title: string; status: "proposed" }> {
   const headers = getAuthHeaders();
   if (!headers.Authorization) {
@@ -133,7 +135,7 @@ export async function createProposedDebate(
       "Content-Type": "application/json",
       ...headers,
     },
-    body: JSON.stringify({ title, turnDuration }),
+    body: JSON.stringify({ title, turnDuration, creatorStance, opponentMode }),
   });
 
   if (!response.ok) {

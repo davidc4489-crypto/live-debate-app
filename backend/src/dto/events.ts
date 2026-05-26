@@ -7,6 +7,8 @@ export interface CreateRoomPayload {
   title: string;
   turnDuration?: 180 | 300 | 600;
   accessToken?: string;
+  creatorStance?: "for" | "against";
+  opponentMode?: "human" | "ai";
 }
 
 export interface JoinRoomPayload {

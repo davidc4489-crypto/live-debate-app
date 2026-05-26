@@ -20,11 +20,12 @@ export class DebateCreationService {
     roomId: string,
     title: string,
     turnDuration: number,
+    options?: { creatorStance?: "for" | "against"; opponentMode?: "human" | "ai" },
   ): Promise<void> {
     const supabase = this.supabaseService.getServiceClient();
     const categoryId = await this.getDefaultCategoryId();
 
-    const baseRow = {
+    const baseRow: Record<string, unknown> = {
       id: roomId,
       title,
       category_id: categoryId,
@@ -33,6 +34,13 @@ export class DebateCreationService {
       max_turn_time: turnDuration,
       max_message_length: 500,
     };
+
+    if (options?.creatorStance) {
+      baseRow.creator_stance = options.creatorStance;
+    }
+    if (options?.opponentMode) {
+      baseRow.opponent_mode = options.opponentMode;
+    }
 
     const withExpiry = {
       ...baseRow,

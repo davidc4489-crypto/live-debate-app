@@ -54,6 +54,8 @@ export class DebatesController {
       this.extractBearerToken(authorization),
       body.title ?? "",
       turnDuration,
+      body.creatorStance,
+      body.opponentMode ?? "human",
     );
   }
 

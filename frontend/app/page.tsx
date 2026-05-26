@@ -1,9 +1,9 @@
-import { HomepageClient } from "@/components/HomepageClient";
+import { LandingPageClient } from "@/components/landing/LandingPageClient";
 
 export default function HomePage() {
   return (
     <div className="page--home">
-      <HomepageClient />
+      <LandingPageClient />
     </div>
   );
 }

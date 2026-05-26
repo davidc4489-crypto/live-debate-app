@@ -46,7 +46,7 @@ export function Sidebar() {
   function handleCreate() {
     setMobileOpen(false);
     if (user) {
-      router.push("/room/new");
+      router.push("/start");
       return;
     }
     window.dispatchEvent(
@@ -88,10 +88,16 @@ export function Sidebar() {
         <nav className="sidebar-nav">
           <SidebarLink href="/" label="Accueil" active={isActive("/")} icon={<HomeIcon />} />
           <SidebarLink
-            href="/#latest"
+            href="/explore"
             label="Débats"
-            active={false}
+            active={isActive("/explore")}
             icon={<DebateIcon />}
+          />
+          <SidebarLink
+            href="/start"
+            label="Lancer"
+            active={isActive("/start")}
+            icon={<PlusIcon />}
           />
           {user ? (
             <SidebarLink

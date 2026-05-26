@@ -182,7 +182,7 @@ export function Topbar() {
           void refreshUser().then(() => {
             if (pendingCreate) {
               setPendingCreate(false);
-              router.push("/room/new");
+              router.push("/start");
               return;
             }
             if (pendingProfile && getStoredAuth()?.user) {

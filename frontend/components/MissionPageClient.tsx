@@ -62,10 +62,10 @@ export function MissionPageClient() {
           attentive et des conclusions qui valorisent ce que chacun a appris — pas le clash.
         </p>
         <div className="hero-cta">
-          <Link href="/#latest" className="btn btn-primary">
+          <Link href="/explore" className="btn btn-primary">
             Explorer les débats
           </Link>
-          <Link href="/room/new" className="btn btn-ghost">
+          <Link href="/start" className="btn btn-ghost">
             Créer un débat
           </Link>
         </div>

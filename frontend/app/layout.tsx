@@ -14,7 +14,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: `${APP_NAME} — ${APP_TAGLINE}`,
   description:
-    `${APP_NAME} : plateforme de débats en ligne — échanges réfléchis, tours de parole, conclusions et modération.`,
+    `${APP_NAME} : apprenez à argumenter grâce à des débats structurés — humain ou IA, tours de parole, analyse.`,
   icons: {
     icon: "/logo_min.png",
     apple: "/logo_min.png",

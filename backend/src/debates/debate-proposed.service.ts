@@ -55,6 +55,8 @@ export class DebateProposedService {
     accessToken: string,
     title: string,
     turnDuration: number,
+    creatorStance?: "for" | "against",
+    opponentMode: "human" | "ai" = "human",
   ): Promise<{ id: string; title: string; status: "proposed" }> {
     const me = await this.authService.getMe(accessToken);
     const trimmedTitle = title.trim();
@@ -68,7 +70,7 @@ export class DebateProposedService {
     const supabase = this.supabaseService.getServiceClient();
     const categoryId = await this.debateCreationService.getDefaultCategoryId();
 
-    const row = {
+    const row: Record<string, unknown> = {
       id: debateId,
       title: trimmedTitle,
       category_id: categoryId,
@@ -76,7 +78,11 @@ export class DebateProposedService {
       created_by: me.id,
       max_turn_time: maxTurnTime,
       max_message_length: 500,
+      opponent_mode: opponentMode,
     };
+    if (creatorStance) {
+      row.creator_stance = creatorStance;
+    }
 
     const { error } = await supabase.from("debates").insert(row);
     if (error) {

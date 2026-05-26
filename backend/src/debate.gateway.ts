@@ -398,6 +398,10 @@ export class DebateGateway
         room.id,
         title,
         turnDuration,
+        {
+          creatorStance: payload?.creatorStance,
+          opponentMode: payload?.opponentMode ?? "human",
+        },
       );
     } catch (err) {
       const message =
