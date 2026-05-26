@@ -51,6 +51,8 @@ export interface DebateRow {
   opponent_joined_at?: string | null;
   paused_by_user_id?: string | null;
   resume_requested_at?: string | null;
+  scheduled_at?: string | null;
+  interested_user_id?: string | null;
   categories: { name: string } | { name: string }[] | null;
   messages: { id: string }[] | MessageRow[] | null;
   debate_participants: ParticipantRow[] | null;
@@ -87,6 +89,8 @@ export class DebatesService {
         created_at,
         paused_by_user_id,
         resume_requested_at,
+        scheduled_at,
+        interested_user_id,
         categories ( name ),
         messages ( id ),
         debate_participants (
@@ -129,6 +133,8 @@ export class DebatesService {
         opponent_joined_at,
         paused_by_user_id,
         resume_requested_at,
+        scheduled_at,
+        interested_user_id,
         categories ( name ),
         messages (
           id,
@@ -211,6 +217,8 @@ export class DebatesService {
       opponentJoinedAt: debate.opponent_joined_at ?? null,
       pausedByUserId: debate.paused_by_user_id ?? null,
       resumeRequestedAt: debate.resume_requested_at ?? null,
+      scheduledAt: debate.scheduled_at ?? null,
+      interestedUserId: debate.interested_user_id ?? null,
       participants: this.extractParticipants(debate),
       messages,
       conclusions: this.mapConclusions(conclusionRows),
@@ -255,6 +263,8 @@ export class DebatesService {
       isLive: debate.status === "active",
       pausedByUserId: debate.paused_by_user_id ?? null,
       resumeRequestedAt: debate.resume_requested_at ?? null,
+      scheduledAt: debate.scheduled_at ?? null,
+      interestedUserId: debate.interested_user_id ?? null,
     };
   }
 }

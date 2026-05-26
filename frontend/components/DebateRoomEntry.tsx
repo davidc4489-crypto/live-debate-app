@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DebateDetail } from "@/lib/debate";
 import { fetchDebate } from "@/lib/debates-api";
+import { DebatePlanningClient } from "./DebatePlanningClient";
 import { DebateReplayClient } from "./DebateReplayClient";
 import { DebateRoomClient } from "./DebateRoomClient";
 
@@ -10,7 +11,7 @@ interface DebateRoomEntryProps {
   roomId: string;
 }
 
-type RoomView = "loading" | "replay" | "live";
+type RoomView = "loading" | "replay" | "planning" | "live";
 
 export function DebateRoomEntry({ roomId }: DebateRoomEntryProps) {
   const [view, setView] = useState<RoomView>("loading");
@@ -31,6 +32,10 @@ export function DebateRoomEntry({ roomId }: DebateRoomEntryProps) {
           setDbDebate(debate);
           if (debate.status === "finished") {
             setView("replay");
+            return;
+          }
+          if (debate.status === "proposed" || debate.status === "scheduled") {
+            setView("planning");
             return;
           }
           if (debate.status === "cancelled") {
@@ -57,6 +62,10 @@ export function DebateRoomEntry({ roomId }: DebateRoomEntryProps) {
 
   if (view === "replay" && dbDebate) {
     return <DebateReplayClient debate={dbDebate} />;
+  }
+
+  if (view === "planning" && dbDebate) {
+    return <DebatePlanningClient debate={dbDebate} />;
   }
 
   return <DebateRoomClient roomId={roomId} dbDebate={dbDebate} />;

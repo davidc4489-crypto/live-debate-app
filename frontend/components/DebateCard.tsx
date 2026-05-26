@@ -4,6 +4,7 @@ import { ParticipantPill } from "@/components/ParticipantPill";
 import {
   DebateListItem,
   formatDebateDate,
+  formatScheduledDate,
   getDebateAudienceLabel,
   getDebateCtaLabel,
 } from "@/lib/debate";
@@ -46,6 +47,8 @@ export function DebateCard({
           {debate.isLive ? <span className="live-badge">LIVE</span> : null}
           {debate.status === "finished" ? <span className="finished-badge">Terminé</span> : null}
           {debate.status === "paused" ? <span className="finished-badge">En pause</span> : null}
+          {debate.status === "proposed" ? <span className="finished-badge">Proposé</span> : null}
+          {debate.status === "scheduled" ? <span className="finished-badge">Planifié</span> : null}
           {trending ? <span className="trend-badge">À la une</span> : null}
         </div>
         {showFavorite && onFavoriteToggle ? (
@@ -67,6 +70,12 @@ export function DebateCard({
           />
         ))}
       </div>
+
+      {debate.status === "scheduled" && debate.scheduledAt ? (
+        <p className="debate-scheduled-date muted">
+          Prévu le {formatScheduledDate(debate.scheduledAt)}
+        </p>
+      ) : null}
 
       <div className="meta-row">
         <span>{debate.messagesCount} messages</span>

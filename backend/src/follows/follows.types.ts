@@ -15,7 +15,15 @@ export interface FollowStatsDto {
 
 export interface NotificationDto {
   id: string;
-  type: "new_debate" | "opponent_joined";
+  type:
+    | "new_debate"
+    | "opponent_joined"
+    | "debate_interest"
+    | "schedule_proposed"
+    | "schedule_accepted"
+    | "schedule_counter"
+    | "debate_scheduled_start"
+    | "debate_interest_rejected";
   actorId: string | null;
   actorDisplayName: string | null;
   debateId: string | null;

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "./auth/auth.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 import { DebatesModule } from "./debates/debates.module";
 import { ModerationModule } from "./moderation/moderation.module";
 import { FavoritesModule } from "./favorites/favorites.module";
@@ -14,6 +15,7 @@ import { SupabaseModule } from "./supabase/supabase.module";
 @Module({
   imports: [
     SupabaseModule,
+    NotificationsModule,
     AuthModule,
     DebatesModule,
     NotesModule,

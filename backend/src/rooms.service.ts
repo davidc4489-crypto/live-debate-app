@@ -73,8 +73,12 @@ export class RoomsService implements OnModuleDestroy {
     title: string,
     turnDuration: 180 | 300 | 600 = 180,
     creatorUserId?: string,
+    roomId?: string,
   ): RoomState {
-    const id = uuidv4();
+    const id = roomId ?? uuidv4();
+    if (this.rooms[id]) {
+      return this.rooms[id];
+    }
     this.rooms[id] = {
       id,
       title: title.trim(),

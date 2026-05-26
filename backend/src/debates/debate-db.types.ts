@@ -1,5 +1,7 @@
 /** Statuts `debate_status` en base (migrations 00001, 00007, 00008). */
 export type DebateStatus =
+  | "proposed"
+  | "scheduled"
   | "pending"
   | "active"
   | "finished"
@@ -26,6 +28,17 @@ export interface DebateRow {
   ended_by_user_id: string | null;
   started_at: string | null;
   ended_at: string | null;
+  scheduled_at: string | null;
+  interested_user_id: string | null;
+}
+
+export interface DebateScheduleProposalRow {
+  id: string;
+  debate_id: string;
+  proposed_by: string;
+  proposed_at: string;
+  status: "pending" | "accepted" | "rejected" | "superseded";
+  created_at: string;
 }
 
 /** Select repli auth / reprise (00008, 00009 optionnels). */

@@ -3,6 +3,7 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -31,6 +32,8 @@ import { DebateFinishService } from "./debates/debate-finish.service";
 import { DebateLifecycleService } from "./debates/debate-lifecycle.service";
 import { DebatePresenceService } from "./debates/debate-presence.service";
 import { DebateRestoreService } from "./debates/debate-restore.service";
+import { DebateSchedulingService } from "./debates/debate-scheduling.service";
+import { NotificationsPushService } from "./notifications/notifications-push.service";
 import { RoomsService } from "./rooms.service";
 import {
   httpExceptionMessage,
@@ -42,7 +45,9 @@ import type { GatewaySessionDeps } from "./debate-gateway-session.helper";
 @WebSocketGateway({
   cors: { origin: "*" },
 })
-export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy {
+export class DebateGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
+{
   private readonly logger = new Logger(DebateGateway.name);
 
   @WebSocketServer()
@@ -50,7 +55,9 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
 
   private turnInterval: NodeJS.Timeout;
   private cancelInterval: NodeJS.Timeout;
+  private scheduledInterval: NodeJS.Timeout;
   private cancelExpiredDebatesRunning = false;
+  private activateScheduledRunning = false;
 
   constructor(
     private readonly roomsService: RoomsService,
@@ -62,6 +69,8 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     private readonly debateLifecycleService: DebateLifecycleService,
     private readonly debateRestoreService: DebateRestoreService,
     private readonly debatePresenceService: DebatePresenceService,
+    private readonly debateSchedulingService: DebateSchedulingService,
+    private readonly notificationsPush: NotificationsPushService,
   ) {
     this.turnInterval = setInterval(() => {
       const changedRoomIds = this.roomsService.tickTurns();
@@ -89,6 +98,49 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     this.cancelInterval = setInterval(() => {
       void this.runCancelExpiredDebates();
     }, 60_000);
+
+    this.scheduledInterval = setInterval(() => {
+      void this.runActivateScheduledDebates();
+    }, 60_000);
+  }
+
+  afterInit(server: Server): void {
+    this.notificationsPush.registerServer(server);
+  }
+
+  private async runActivateScheduledDebates(): Promise<void> {
+    if (this.activateScheduledRunning) return;
+
+    this.activateScheduledRunning = true;
+    try {
+      const due = await this.debateSchedulingService.findDebatesToActivate();
+      if (due.length === 0) return;
+
+      for (const debate of due) {
+        const turnDuration = debate.max_turn_time as 180 | 300 | 600;
+        if (!this.roomsService.getRoomSnapshot(debate.id)) {
+          this.roomsService.createRoom(
+            debate.title,
+            turnDuration,
+            debate.created_by,
+            debate.id,
+          );
+        }
+
+        await this.debateSchedulingService.markActivated(debate.id, debate.created_by);
+        await this.debateSchedulingService.notifyDebateStarting(debate.id, debate.title, [
+          debate.created_by,
+          debate.interested_user_id,
+        ]);
+      }
+
+      this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Échec activation débats planifiés : ${message}`);
+    } finally {
+      this.activateScheduledRunning = false;
+    }
   }
 
   private async runCancelExpiredDebates(): Promise<void> {
@@ -126,6 +178,7 @@ export class DebateGateway implements OnGatewayConnection, OnGatewayDisconnect, 
   onModuleDestroy() {
     clearInterval(this.turnInterval);
     clearInterval(this.cancelInterval);
+    clearInterval(this.scheduledInterval);
   }
 
   handleConnection(client: Socket) {

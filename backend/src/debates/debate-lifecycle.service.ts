@@ -117,7 +117,6 @@ export class DebateLifecycleService {
       .update({ status: "cancelled" })
       .eq("status", "pending")
       .is("validated_at", null)
-      .is("opponent_joined_at", null)
       .lt("expires_at", now)
       .select("id");
 

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredAuth } from "@/lib/auth";
 import { useAuthSession } from "@/lib/useAuthSession";
+import { createProposedDebate } from "@/lib/debates-api";
 import { getSocket } from "@/lib/socket";
 import { AuthModal, AuthModalMode } from "./AuthModal";
 
@@ -22,6 +23,7 @@ export function CreateDebateClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [turnDuration, setTurnDuration] = useState<180 | 300 | 600>(180);
+  const [createMode, setCreateMode] = useState<"live" | "proposed">("live");
   const createTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -71,7 +73,7 @@ export function CreateDebateClient() {
     };
   }, [router]);
 
-  function handleCreate(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -84,6 +86,19 @@ export function CreateDebateClient() {
 
     if (!title.trim()) {
       setError("Le titre du debat est requis.");
+      return;
+    }
+
+    if (createMode === "proposed") {
+      setLoading(true);
+      try {
+        const created = await createProposedDebate(title.trim(), turnDuration);
+        router.push(`/room/${created.id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Impossible de proposer le débat.");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -129,16 +144,40 @@ export function CreateDebateClient() {
           </>
         ) : (
           <>
-            <p className="muted">Donnez un titre, puis lancez la room en direct.</p>
-
-            <p className="muted create-debate-notice">
-              Si aucun participant ne rejoint dans l&apos;heure, le débat sera automatiquement
-              fermé. Vous pourrez ensuite proposer ce sujet dans la section des sujets proposés
-              (à venir) et recevoir une notification lorsqu&apos;un autre participant souhaitera y
-              participer.
+            <p className="muted">
+              Lancez un débat immédiatement ou proposez un sujet à planifier plus tard.
             </p>
 
-            <form className="create-form" onSubmit={handleCreate}>
+            <div className="hero-cta" style={{ marginBottom: "1rem" }}>
+              <button
+                type="button"
+                className={`btn ${createMode === "live" ? "btn-primary" : "btn-ghost"}`}
+                onClick={() => setCreateMode("live")}
+              >
+                Lancer maintenant
+              </button>
+              <button
+                type="button"
+                className={`btn ${createMode === "proposed" ? "btn-primary" : "btn-ghost"}`}
+                onClick={() => setCreateMode("proposed")}
+              >
+                Proposer un sujet
+              </button>
+            </div>
+
+            {createMode === "live" ? (
+              <p className="muted create-debate-notice">
+                Si aucun participant ne rejoint dans l&apos;heure, le débat sera automatiquement
+                fermé.
+              </p>
+            ) : (
+              <p className="muted create-debate-notice">
+                Votre sujet apparaîtra dans « Débats proposés ». Quand un participant se manifeste,
+                vous pourrez négocier une date ensemble.
+              </p>
+            )}
+
+            <form className="create-form" onSubmit={(e) => void handleCreate(e)}>
               <label htmlFor="debate-title">Titre du debat</label>
               <input
                 id="debate-title"
@@ -163,7 +202,11 @@ export function CreateDebateClient() {
               {error ? <p className="muted">{error}</p> : null}
 
               <button type="submit" disabled={loading}>
-                {loading ? "Creation..." : "Creer le debat"}
+                {loading
+                  ? "Creation..."
+                  : createMode === "proposed"
+                    ? "Proposer le sujet"
+                    : "Creer le debat"}
               </button>
             </form>
           </>

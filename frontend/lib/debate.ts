@@ -15,7 +15,14 @@ export const debateThemes: DebateTheme[] = [
   "Économie",
 ];
 
-export type DebateStatus = "pending" | "active" | "finished" | "cancelled" | "paused";
+export type DebateStatus =
+  | "proposed"
+  | "scheduled"
+  | "pending"
+  | "active"
+  | "finished"
+  | "cancelled"
+  | "paused";
 
 export interface DebateParticipant {
   userId: string | null;
@@ -35,6 +42,18 @@ export interface DebateListItem {
   isLive: boolean;
   pausedByUserId?: string | null;
   resumeRequestedAt?: string | null;
+  scheduledAt?: string | null;
+  interestedUserId?: string | null;
+}
+
+export interface ProposedDebateListItem extends DebateListItem {
+  interestedUserId: string | null;
+  scheduledAt: string | null;
+}
+
+export interface ScheduledDebateListItem extends DebateListItem {
+  interestedUserId: string | null;
+  scheduledAt: string;
 }
 
 export interface DebateCtaOptions {
@@ -53,6 +72,8 @@ function isDebateParticipant(
 }
 
 export function getDebateCtaLabel(status: DebateStatus, options?: DebateCtaOptions): string {
+  if (status === "proposed") return "Voir la proposition";
+  if (status === "scheduled") return "Voir la planification";
   if (status === "finished") return "Revoir le débat";
   if (status === "cancelled") return "Voir le sujet";
 
@@ -119,6 +140,8 @@ export interface DebateDetail {
   opponentJoinedAt: string | null;
   pausedByUserId?: string | null;
   resumeRequestedAt?: string | null;
+  scheduledAt?: string | null;
+  interestedUserId?: string | null;
   participants: [DebateParticipant, DebateParticipant];
   messages: DebateMessage[];
   conclusions: DebateConclusion[];
@@ -129,6 +152,24 @@ export const CONCLUSION_PROMPT =
   "Expliquez en quoi ce débat a été fertile, ce que vous avez appris de l'autre participant, et les points que vous retenez pour la suite.";
 
 export const MAX_CONCLUSION_LENGTH = 3000;
+
+export interface DebateScheduleProposal {
+  id: string;
+  proposedBy: string;
+  proposedAt: string;
+  status: "pending" | "accepted" | "rejected" | "superseded";
+  createdAt: string;
+}
+
+export interface DebateSchedulingState {
+  debateId: string;
+  status: DebateStatus;
+  scheduledAt: string | null;
+  interestedUserId: string | null;
+  createdBy: string | null;
+  pendingProposal: DebateScheduleProposal | null;
+  proposals: DebateScheduleProposal[];
+}
 
 export function formatDebateDate(isoDate: string): string {
   const date = new Date(isoDate);
@@ -143,4 +184,15 @@ export function formatDebateDate(isoDate: string): string {
 
   const diffDays = Math.floor(diffHours / 24);
   return `il y a ${diffDays} j`;
+}
+
+export function formatScheduledDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

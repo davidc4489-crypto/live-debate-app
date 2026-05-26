@@ -1,4 +1,11 @@
-export type DebateStatus = "pending" | "active" | "finished" | "cancelled" | "paused";
+export type DebateStatus =
+  | "proposed"
+  | "scheduled"
+  | "pending"
+  | "active"
+  | "finished"
+  | "cancelled"
+  | "paused";
 
 export interface DebateParticipantDto {
   userId: string | null;
@@ -36,6 +43,36 @@ export interface DebateDetailDto {
   messages: DebateMessageDto[];
   conclusions: DebateConclusionDto[];
   endedAt: string | null;
+  scheduledAt?: string | null;
+  interestedUserId?: string | null;
+}
+
+export interface DebateScheduleProposalDto {
+  id: string;
+  proposedBy: string;
+  proposedAt: string;
+  status: "pending" | "accepted" | "rejected" | "superseded";
+  createdAt: string;
+}
+
+export interface DebateSchedulingStateDto {
+  debateId: string;
+  status: DebateStatus;
+  scheduledAt: string | null;
+  interestedUserId: string | null;
+  createdBy: string | null;
+  pendingProposal: DebateScheduleProposalDto | null;
+  proposals: DebateScheduleProposalDto[];
+}
+
+export interface ProposedDebateListItemDto extends DebateListItemDto {
+  interestedUserId: string | null;
+  scheduledAt: string | null;
+}
+
+export interface ScheduledDebateListItemDto extends DebateListItemDto {
+  interestedUserId: string | null;
+  scheduledAt: string;
 }
 
 export interface DebateListItemDto {
@@ -51,4 +88,6 @@ export interface DebateListItemDto {
   isLive: boolean;
   pausedByUserId?: string | null;
   resumeRequestedAt?: string | null;
+  scheduledAt?: string | null;
+  interestedUserId?: string | null;
 }

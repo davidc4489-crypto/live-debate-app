@@ -107,7 +107,7 @@ export class DebateCreationService {
     });
   }
 
-  private async getDefaultCategoryId(): Promise<string> {
+  async getDefaultCategoryId(): Promise<string> {
     if (this.defaultCategoryId) return this.defaultCategoryId;
 
     const supabase = this.supabaseService.getServiceClient();

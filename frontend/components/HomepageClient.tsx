@@ -7,7 +7,8 @@ import { DebateCard } from "@/components/DebateCard";
 import { FilterChips } from "@/components/FilterChips";
 import { SectionLayout } from "@/components/SectionLayout";
 import { DebateListItem, DebateTheme, debateThemes, getDebatePopularityScore } from "@/lib/debate";
-import { fetchDebates } from "@/lib/debates-api";
+import { fetchDebates, fetchProposedDebates, fetchScheduledDebates } from "@/lib/debates-api";
+import { ProposedDebateListItem, ScheduledDebateListItem } from "@/lib/debate";
 import { addFavorite, fetchFavorites, removeFavorite } from "@/lib/favorites-api";
 import { mergeLiveRoomsIntoDebateList } from "@/lib/participant-roster";
 import { getSocket } from "@/lib/socket";
@@ -25,6 +26,10 @@ export function HomepageClient() {
   const [pendingCreate, setPendingCreate] = useState(false);
   const [activeTheme, setActiveTheme] = useState<ThemeFilter>("Tous");
   const [debates, setDebates] = useState<DebateListItem[]>([]);
+  const [proposedDebates, setProposedDebates] = useState<ProposedDebateListItem[]>([]);
+  const [proposedLoading, setProposedLoading] = useState(true);
+  const [scheduledDebates, setScheduledDebates] = useState<ScheduledDebateListItem[]>([]);
+  const [scheduledLoading, setScheduledLoading] = useState(true);
   const [favoriteDebates, setFavoriteDebates] = useState<DebateListItem[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [favoriteLoadingId, setFavoriteLoadingId] = useState<string | null>(null);
@@ -37,8 +42,14 @@ export function HomepageClient() {
 
   const refreshDebatesFromApi = useCallback(async () => {
     try {
-      const data = await fetchDebates();
+      const [data, proposed, scheduled] = await Promise.all([
+        fetchDebates(),
+        fetchProposedDebates(),
+        fetchScheduledDebates(),
+      ]);
       setDebates(mergeLiveRoomsIntoDebateList(data, liveRoomsRef.current));
+      setProposedDebates(proposed);
+      setScheduledDebates(scheduled);
     } catch {
       // ignore — l'erreur initiale est déjà affichée au premier chargement
     }
@@ -64,7 +75,33 @@ export function HomepageClient() {
       }
     }
 
+    async function loadProposed() {
+      setProposedLoading(true);
+      try {
+        const data = await fetchProposedDebates();
+        if (!cancelled) setProposedDebates(data);
+      } catch {
+        if (!cancelled) setProposedDebates([]);
+      } finally {
+        if (!cancelled) setProposedLoading(false);
+      }
+    }
+
+    async function loadScheduled() {
+      setScheduledLoading(true);
+      try {
+        const data = await fetchScheduledDebates();
+        if (!cancelled) setScheduledDebates(data);
+      } catch {
+        if (!cancelled) setScheduledDebates([]);
+      } finally {
+        if (!cancelled) setScheduledLoading(false);
+      }
+    }
+
     void loadDebates();
+    void loadProposed();
+    void loadScheduled();
     return () => {
       cancelled = true;
     };
@@ -180,9 +217,25 @@ export function HomepageClient() {
   }
 
   const filteredDebates = useMemo(() => {
-    if (activeTheme === "Tous") return debates;
-    return debates.filter((debate) => debate.theme === activeTheme);
+    const liveList = debates.filter(
+      (d) => d.status !== "proposed" && d.status !== "scheduled",
+    );
+    if (activeTheme === "Tous") return liveList;
+    return liveList.filter((debate) => debate.theme === activeTheme);
   }, [activeTheme, debates]);
+
+  const filteredProposed = useMemo(() => {
+    if (activeTheme === "Tous") return proposedDebates;
+    return proposedDebates.filter((debate) => debate.theme === activeTheme);
+  }, [activeTheme, proposedDebates]);
+
+  const filteredScheduled = useMemo(() => {
+    const list = [...scheduledDebates].sort(
+      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+    );
+    if (activeTheme === "Tous") return list;
+    return list.filter((debate) => debate.theme === activeTheme);
+  }, [activeTheme, scheduledDebates]);
 
   const filteredFavorites = useMemo(() => {
     if (activeTheme === "Tous") return favoriteDebates;
@@ -268,6 +321,41 @@ export function HomepageClient() {
               )}
             </SectionLayout>
           ) : null}
+
+          <SectionLayout
+            title="Débats proposés"
+            subtitle="Sujets ouverts sans date fixée — manifestez votre intérêt ou planifiez un créneau."
+          >
+            {proposedLoading ? (
+              <div className="empty-state">Chargement des débats proposés…</div>
+            ) : filteredProposed.length > 0 ? (
+              <div className="debate-grid">
+                {filteredProposed.map((debate) => renderDebateCard(debate))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                Aucun débat proposé pour le moment. Créez-en un via « Proposer un sujet ».
+              </div>
+            )}
+          </SectionLayout>
+
+          <SectionLayout
+            title="Débats planifiés"
+            subtitle="Dates confirmées — les prochains créneaux apparaissent en premier."
+          >
+            {scheduledLoading ? (
+              <div className="empty-state">Chargement des débats planifiés…</div>
+            ) : filteredScheduled.length > 0 ? (
+              <div className="debate-grid">
+                {filteredScheduled.map((debate) => renderDebateCard(debate))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                Aucun débat planifié pour le moment. Une date apparaîtra ici après accord entre les
+                participants.
+              </div>
+            )}
+          </SectionLayout>
 
           <SectionLayout title="Continue watching" subtitle="Reprenez les debats les plus actifs de votre fil.">
             {continueWatching.length > 0 ? (
