@@ -1,5 +1,9 @@
 import { HomepageClient } from "@/components/HomepageClient";
 
 export default function HomePage() {
-  return <HomepageClient />;
+  return (
+    <div className="page--home">
+      <HomepageClient />
+    </div>
+  );
 }

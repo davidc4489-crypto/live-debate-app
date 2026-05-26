@@ -6,14 +6,23 @@ import { AuthModal, AuthModalMode } from "@/components/AuthModal";
 import { DebateCard } from "@/components/DebateCard";
 import { FilterChips } from "@/components/FilterChips";
 import { SectionLayout } from "@/components/SectionLayout";
-import { DebateListItem, DebateTheme, debateThemes, getDebatePopularityScore } from "@/lib/debate";
+import { HomeFeatures } from "@/components/marketing/HomeFeatures";
+import { HomeHero } from "@/components/marketing/HomeHero";
+import { HomeProductPreview } from "@/components/marketing/HomeProductPreview";
+import { HomeStats } from "@/components/marketing/HomeStats";
+import {
+  DebateListItem,
+  DebateTheme,
+  debateThemes,
+  getDebatePopularityScore,
+  ProposedDebateListItem,
+  ScheduledDebateListItem,
+} from "@/lib/debate";
 import { fetchDebates, fetchProposedDebates, fetchScheduledDebates } from "@/lib/debates-api";
-import { ProposedDebateListItem, ScheduledDebateListItem } from "@/lib/debate";
 import { addFavorite, fetchFavorites, removeFavorite } from "@/lib/favorites-api";
 import { mergeLiveRoomsIntoDebateList } from "@/lib/participant-roster";
 import { getSocket } from "@/lib/socket";
 import { RoomSnapshot } from "@/lib/types";
-import { APP_NAME } from "@/lib/brand";
 import { useAuthSession } from "@/lib/useAuthSession";
 
 type ThemeFilter = DebateTheme | "Tous";
@@ -51,7 +60,7 @@ export function HomepageClient() {
       setProposedDebates(proposed);
       setScheduledDebates(scheduled);
     } catch {
-      // ignore — l'erreur initiale est déjà affichée au premier chargement
+      // ignore
     }
   }, []);
 
@@ -248,6 +257,8 @@ export function HomepageClient() {
     .slice(0, 6);
   const continueWatching = filteredDebates.filter((debate) => debate.messagesCount >= 10);
 
+  const liveCount = filteredDebates.filter((d) => d.isLive || d.status === "pending").length;
+
   function renderDebateCard(debate: DebateListItem, trending = false) {
     return (
       <DebateCard
@@ -264,135 +275,125 @@ export function HomepageClient() {
   }
 
   return (
-    <div className="home-root">
-      <section className="hero reveal">
-        <div className="hero-card">
-          <p className="kicker">{APP_NAME} · débats posés · tours de parole · conclusions</p>
-          <h1>Des échanges structurés, pour penser avant de répondre.</h1>
-          <p className="hero-subtitle">
-            Une plateforme sobre dédiée à la qualité du débat : tours de parole, modération attentive et
-            synthèses de fin d&apos;échange. Pas de bruit, pas de course au clash.
-          </p>
-          <div className="hero-cta">
-            <a href="#latest" className="btn btn-primary">
-              Voir les débats
-            </a>
-            <button type="button" className="btn btn-ghost" onClick={handleCreateDebateClick}>
-              Créer un débat
-            </button>
+    <div className="home-marketing">
+      <HomeHero onCreateDebate={handleCreateDebateClick} />
+      <HomeFeatures />
+      <HomeProductPreview />
+      <HomeStats
+        liveCount={liveCount}
+        proposedCount={proposedDebates.length}
+        scheduledCount={scheduledDebates.length}
+      />
+
+      <div id="debates" className="home-debates">
+        <div className="home-debates-inner">
+          <div className="home-debates-filters">
+            <div className="mkt-section-intro">
+              <p className="mkt-kicker">Catalogue</p>
+              <h2 className="mkt-section-title">Tous les débats</h2>
+              <p className="mkt-section-lead">
+                Filtrez par thème, rejoignez une discussion en cours ou proposez un nouveau sujet.
+              </p>
+            </div>
+            <FilterChips themes={debateThemes} activeTheme={activeTheme} onChange={setActiveTheme} />
           </div>
-        </div>
-      </section>
 
-      <SectionLayout
-        title="Filtres par thèmes"
-        subtitle="Explorez rapidement les débats selon les sujets qui vous intéressent."
-      >
-        <FilterChips themes={debateThemes} activeTheme={activeTheme} onChange={setActiveTheme} />
-      </SectionLayout>
-
-      {loading ? (
-        <SectionLayout title="Chargement" subtitle="Récupération des débats depuis la base de données.">
-          <div className="empty-state">Chargement en cours…</div>
-        </SectionLayout>
-      ) : error ? (
-        <SectionLayout title="Erreur" subtitle="Les débats n'ont pas pu être chargés.">
-          <div className="empty-state">{error}</div>
-        </SectionLayout>
-      ) : (
-        <>
-          {user ? (
-            <SectionLayout
-              title="Mes débats favoris"
-              subtitle="Retrouvez les débats que vous avez enregistrés pour les revoir plus tard."
-            >
-              {favoritesLoading ? (
-                <div className="empty-state">Chargement de vos favoris…</div>
-              ) : favoritesError ? (
-                <div className="empty-state">{favoritesError}</div>
-              ) : filteredFavorites.length > 0 ? (
-                <div className="debate-grid">
-                  {filteredFavorites.map((debate) => renderDebateCard(debate))}
-                </div>
-              ) : (
-                <div id="favorites" className="empty-state">
-                  Aucun favori pour le moment. Cliquez sur l&apos;étoile d&apos;un débat pour l&apos;ajouter ici.
-                </div>
-              )}
+          {loading ? (
+            <SectionLayout title="Chargement" subtitle="Récupération des débats depuis la base de données.">
+              <div className="empty-state">Chargement en cours…</div>
             </SectionLayout>
-          ) : null}
+          ) : error ? (
+            <SectionLayout title="Erreur" subtitle="Les débats n'ont pas pu être chargés.">
+              <div className="empty-state">{error}</div>
+            </SectionLayout>
+          ) : (
+            <>
+              {user ? (
+                <SectionLayout
+                  title="Mes favoris"
+                  subtitle="Débats enregistrés pour les retrouver rapidement."
+                  variant="muted"
+                >
+                  {favoritesLoading ? (
+                    <div className="empty-state">Chargement de vos favoris…</div>
+                  ) : favoritesError ? (
+                    <div className="empty-state">{favoritesError}</div>
+                  ) : filteredFavorites.length > 0 ? (
+                    <div className="debate-grid">{filteredFavorites.map((d) => renderDebateCard(d))}</div>
+                  ) : (
+                    <div className="empty-state">
+                      Aucun favori. Cliquez sur l&apos;étoile d&apos;un débat pour l&apos;ajouter.
+                    </div>
+                  )}
+                </SectionLayout>
+              ) : null}
 
-          <SectionLayout
-            title="Débats proposés"
-            subtitle="Sujets ouverts sans date fixée — manifestez votre intérêt ou planifiez un créneau."
-          >
-            {proposedLoading ? (
-              <div className="empty-state">Chargement des débats proposés…</div>
-            ) : filteredProposed.length > 0 ? (
-              <div className="debate-grid">
-                {filteredProposed.map((debate) => renderDebateCard(debate))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                Aucun débat proposé pour le moment. Créez-en un via « Proposer un sujet ».
-              </div>
-            )}
-          </SectionLayout>
+              <SectionLayout
+                title="Débats proposés"
+                subtitle="Sujets sans date — manifestez votre intérêt ou planifiez un créneau."
+              >
+                {proposedLoading ? (
+                  <div className="empty-state">Chargement…</div>
+                ) : filteredProposed.length > 0 ? (
+                  <div className="debate-grid">{filteredProposed.map((d) => renderDebateCard(d))}</div>
+                ) : (
+                  <div className="empty-state">
+                    Aucun débat proposé. Créez-en un via « Proposer un sujet ».
+                  </div>
+                )}
+              </SectionLayout>
 
-          <SectionLayout
-            title="Débats planifiés"
-            subtitle="Dates confirmées — les prochains créneaux apparaissent en premier."
-          >
-            {scheduledLoading ? (
-              <div className="empty-state">Chargement des débats planifiés…</div>
-            ) : filteredScheduled.length > 0 ? (
-              <div className="debate-grid">
-                {filteredScheduled.map((debate) => renderDebateCard(debate))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                Aucun débat planifié pour le moment. Une date apparaîtra ici après accord entre les
-                participants.
-              </div>
-            )}
-          </SectionLayout>
+              <SectionLayout
+                title="Débats planifiés"
+                subtitle="Dates confirmées — les prochains créneaux en premier."
+                variant="muted"
+              >
+                {scheduledLoading ? (
+                  <div className="empty-state">Chargement…</div>
+                ) : filteredScheduled.length > 0 ? (
+                  <div className="debate-grid">{filteredScheduled.map((d) => renderDebateCard(d))}</div>
+                ) : (
+                  <div className="empty-state">
+                    Aucun débat planifié pour le moment.
+                  </div>
+                )}
+              </SectionLayout>
 
-          <SectionLayout title="Continue watching" subtitle="Reprenez les debats les plus actifs de votre fil.">
-            {continueWatching.length > 0 ? (
-              <div className="debate-grid">
-                {continueWatching.map((debate) => renderDebateCard(debate))}
-              </div>
-            ) : (
-              <div className="empty-state">Aucun debat actif pour ce theme. Essayez un autre filtre.</div>
-            )}
-          </SectionLayout>
+              {continueWatching.length > 0 ? (
+                <SectionLayout title="À suivre" subtitle="Les échanges les plus actifs en ce moment.">
+                  <div className="debate-grid">{continueWatching.map((d) => renderDebateCard(d))}</div>
+                </SectionLayout>
+              ) : null}
 
-          <SectionLayout title="Derniers débats" subtitle="Les discussions les plus récentes, prêtes à rejoindre.">
-            {latestDebates.length > 0 ? (
-              <div id="latest" className="debate-grid">
-                {latestDebates.map((debate) => renderDebateCard(debate))}
-              </div>
-            ) : (
-              <div id="latest" className="empty-state">
-                Aucun débat pour le moment. Lancez le seed backend ou créez un débat.
-              </div>
-            )}
-          </SectionLayout>
+              <SectionLayout
+                id="latest"
+                title="Derniers débats"
+                subtitle="Discussions récentes, prêtes à rejoindre."
+              >
+                {latestDebates.length > 0 ? (
+                  <div className="debate-grid">{latestDebates.map((d) => renderDebateCard(d))}</div>
+                ) : (
+                  <div className="empty-state">Aucun débat pour ce filtre.</div>
+                )}
+              </SectionLayout>
 
-          <SectionLayout
-            title="Débats les plus populaires"
-            subtitle="Classement par vues (terminés) ou spectateurs (en cours)."
-          >
-            {trendingDebates.length > 0 ? (
-              <div className="debate-grid">
-                {trendingDebates.map((debate) => renderDebateCard(debate, true))}
-              </div>
-            ) : (
-              <div className="empty-state">Aucun débat populaire pour ce filtre actuellement.</div>
-            )}
-          </SectionLayout>
-        </>
-      )}
+              <SectionLayout
+                title="Populaires"
+                subtitle="Classés par spectateurs (en cours) ou vues (terminés)."
+                variant="muted"
+              >
+                {trendingDebates.length > 0 ? (
+                  <div className="debate-grid">
+                    {trendingDebates.map((d) => renderDebateCard(d, true))}
+                  </div>
+                ) : (
+                  <div className="empty-state">Aucun débat populaire pour ce filtre.</div>
+                )}
+              </SectionLayout>
+            </>
+          )}
+        </div>
+      </div>
 
       <AuthModal
         open={authOpen}

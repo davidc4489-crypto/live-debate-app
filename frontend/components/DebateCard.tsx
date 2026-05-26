@@ -40,15 +40,17 @@ export function DebateCard({
     (debate.status !== "paused" || ctaLabel !== "Voir le débat");
 
   return (
-    <article className={`debate-card reveal ${trending ? "trending" : ""}`}>
+    <article
+      className={`debate-card reveal ${trending ? "debate-card--trending" : ""} ${debate.isLive ? "debate-card--live" : ""}`}
+    >
       <div className="card-topline">
         <div className="card-topline-badges">
           <span className="theme-badge">{debate.theme}</span>
-          {debate.isLive ? <span className="live-badge">LIVE</span> : null}
-          {debate.status === "finished" ? <span className="finished-badge">Terminé</span> : null}
-          {debate.status === "paused" ? <span className="finished-badge">En pause</span> : null}
-          {debate.status === "proposed" ? <span className="finished-badge">Proposé</span> : null}
-          {debate.status === "scheduled" ? <span className="finished-badge">Planifié</span> : null}
+          {debate.isLive ? <span className="live-badge">En direct</span> : null}
+          {debate.status === "finished" ? <span className="status-badge">Terminé</span> : null}
+          {debate.status === "paused" ? <span className="status-badge">En pause</span> : null}
+          {debate.status === "proposed" ? <span className="status-badge">Proposé</span> : null}
+          {debate.status === "scheduled" ? <span className="status-badge status-badge--accent">Planifié</span> : null}
           {trending ? <span className="trend-badge">À la une</span> : null}
         </div>
         {showFavorite && onFavoriteToggle ? (
@@ -60,7 +62,7 @@ export function DebateCard({
         ) : null}
       </div>
 
-      <h3>{debate.title}</h3>
+      <h3 className="debate-card-title">{debate.title}</h3>
 
       <div className="participants">
         {debate.participants.map((participant) => (
@@ -72,22 +74,22 @@ export function DebateCard({
       </div>
 
       {debate.status === "scheduled" && debate.scheduledAt ? (
-        <p className="debate-scheduled-date muted">
-          Prévu le {formatScheduledDate(debate.scheduledAt)}
+        <p className="debate-scheduled-date">
+          {formatScheduledDate(debate.scheduledAt)}
         </p>
       ) : null}
 
-      <div className="meta-row">
+      <div className="debate-card-meta">
         <span>{debate.messagesCount} messages</span>
+        <span aria-hidden="true">·</span>
         <span>{formatDebateDate(debate.createdAt)}</span>
-      </div>
-      <div className="meta-row">
+        <span aria-hidden="true">·</span>
         <span>{getDebateAudienceLabel(debate)}</span>
       </div>
 
       <Link
         href={`/room/${debate.id}`}
-        className={`btn ${ctaIsPrimary ? "btn-primary" : "btn-ghost"}`}
+        className={`btn w-full ${ctaIsPrimary ? "btn-primary" : "btn-secondary"}`}
       >
         {ctaLabel}
       </Link>
