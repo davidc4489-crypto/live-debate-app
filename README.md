@@ -117,6 +117,11 @@ npm run migrate 00015_resume_requester_and_title_guard # en applique une
 La migration est jouée dans une transaction (rien n'est appliqué en cas
 d'erreur) et les fichiers du projet sont rejouables sans effet de bord.
 
+> **`connect ENETUNREACH` ?** Le host direct `db.<ref>.supabase.co` n'a plus
+> d'enregistrement IPv4 : il est injoignable depuis un réseau sans IPv6. Prenez
+> la chaîne **Session pooler** du dashboard (`postgres.<ref>@aws-0-<région>
+> .pooler.supabase.com:5432`), qui répond en IPv4.
+
 **Profils / intérêts** — si vous voyez `Could not find the table 'public.interests'` :
 
 1. [Supabase Dashboard](https://supabase.com/dashboard) → votre projet → **SQL Editor** → **New query**

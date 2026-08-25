@@ -2,8 +2,12 @@
  * Applique une migration SQL sur la base PostgreSQL Supabase.
  *
  * Prérequis dans backend/.env :
- *   DATABASE_URL=postgresql://postgres.[ref]:[MOT_DE_PASSE]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
- * (Supabase → Project Settings → Database → Connection string → URI)
+ *   DATABASE_URL=postgresql://postgres.[ref]:[MOT_DE_PASSE]@aws-0-[région].pooler.supabase.com:5432/postgres
+ * (Supabase → Project Settings → Database → Connection string → Session pooler)
+ *
+ * Utiliser le pooler, pas le host direct `db.[ref].supabase.co` : ce dernier
+ * n'a plus d'enregistrement IPv4 et échoue en `ENETUNREACH` depuis un réseau
+ * sans IPv6.
  *
  * Usage :
  *   npm run migrate 00015_resume_requester_and_title_guard
