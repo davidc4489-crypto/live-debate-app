@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { LandingHero } from "./LandingHero";
 import { HowItWorks } from "./HowItWorks";
 import { WhyProduct } from "./WhyProduct";
@@ -22,12 +24,12 @@ export function LandingPageClient() {
           <h2 className="mkt-section-title">Prêt à tester vos arguments ?</h2>
           <p className="mkt-section-lead">Rejoignez un débat existant ou créez le vôtre en quelques clics.</p>
           <div className="landing-hero-actions">
-            <a href="/start" className="btn btn-primary btn-lg">
-              Commencer un débat
-            </a>
-            <a href="/explore" className="btn btn-secondary btn-lg">
+            <Link href="/start" className="btn btn-primary btn-lg">
+              Lancer un débat
+            </Link>
+            <Link href="/explore" className="btn btn-secondary btn-lg">
               Explorer les débats
-            </a>
+            </Link>
           </div>
         </div>
       </section>

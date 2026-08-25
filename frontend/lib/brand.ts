@@ -18,22 +18,22 @@ export const PRODUCT_POSITIONING =
 export const AI_ROLES = {
   moderation: {
     id: "moderation",
-    title: "Modération",
-    shortTitle: "Modération en direct",
+    title: "Sécurité",
+    shortTitle: "Modération avant publication",
     description:
       "Chaque message est analysé avant publication. Les propos injurieux ou haineux sont bloqués, les formulations limites signalées à leur auteur avant l'envoi.",
   },
   quality: {
     id: "quality",
-    title: "Climat du débat",
+    title: "Indicateurs",
     shortTitle: "Climat du débat",
     description:
       "Un indice de civilité et de qualité argumentative, calculé au fil de l'échange et visible par les deux participants.",
   },
   coach: {
     id: "coach",
-    title: "Retour privé",
-    shortTitle: "Retour privé",
+    title: "Progression",
+    shortTitle: "Retour privé à l'auteur",
     description:
       "Après chaque message, vous seul recevez des pistes pour structurer ou étayer votre argument. Rien n'est écrit à votre place.",
   },

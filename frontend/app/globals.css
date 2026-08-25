@@ -361,21 +361,6 @@
   }
 
   /* Home */
-  .home-marketing {
-    @apply flex flex-col;
-  }
-
-  .home-debates {
-    @apply border-t border-border bg-white py-16 md:py-24;
-  }
-
-  .home-debates-inner {
-    @apply mx-auto grid w-full max-w-marketing gap-12 px-4 md:px-8;
-  }
-
-  .home-debates-filters {
-    @apply grid gap-6;
-  }
 
   .hero-cta {
     @apply flex flex-wrap gap-3;
@@ -456,16 +441,8 @@
     @apply rounded-md bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-ink-muted;
   }
 
-  .trend-badge {
-    @apply rounded-md bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-brand;
-  }
-
   .debate-scheduled-date {
     @apply m-0 text-[13px] font-medium leading-snug text-brand-accent;
-  }
-
-  .meta-row {
-    @apply flex flex-wrap gap-3 text-[13px] text-ink-muted;
   }
 
   .participants {
@@ -644,17 +621,6 @@
   }
 
   /* Filters */
-  .filter-chips {
-    @apply flex flex-wrap gap-1.5;
-  }
-
-  .filter-chip {
-    @apply rounded-md border border-border bg-white px-2.5 py-1 text-[12px] font-medium text-ink-muted transition-colors hover:border-border-strong hover:text-ink;
-  }
-
-  .filter-chip.active {
-    @apply border-brand/30 bg-brand-light text-brand;
-  }
 
   /* Auth modal */
   .auth-overlay {
@@ -729,10 +695,6 @@
     @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between;
   }
 
-  .create-debate-notice {
-    @apply rounded-md border border-border bg-surface-muted px-3 py-2 text-[13px] leading-relaxed;
-  }
-
   .moderation-block-msg {
     @apply rounded-md border border-danger-text/15 bg-danger-soft px-3 py-2 text-danger-text;
   }
@@ -758,10 +720,6 @@
 
   .section-header p {
     @apply mt-1 text-[13px] text-ink-muted;
-  }
-
-  .debates-grid {
-    @apply grid gap-3 sm:grid-cols-2;
   }
 
   .room-back {
@@ -1134,10 +1092,6 @@
     @apply m-0 text-[15px] font-semibold text-ink;
   }
 
-  .notebook-empty {
-    @apply m-0 py-5 text-center text-[13px];
-  }
-
   .notebook-grid {
     @apply grid gap-4 sm:grid-cols-2;
   }
@@ -1402,10 +1356,6 @@
     @apply bg-surface-subtle;
   }
 
-  .mkt-section--bordered {
-    @apply border-y border-border bg-white py-12 md:py-16;
-  }
-
   .mkt-section-intro {
     @apply mb-12 max-w-2xl;
   }
@@ -1433,65 +1383,8 @@
       radial-gradient(ellipse 60% 40% at 100% 0%, rgba(9, 9, 11, 0.03), transparent);
   }
 
-  .mkt-hero-inner {
-    @apply relative z-[1];
-  }
-
   .mkt-hero-title {
     @apply m-0 mt-4 max-w-3xl text-[2.5rem] font-semibold leading-[1.05] tracking-tighter text-ink md:text-[3.5rem] lg:text-[4rem];
-  }
-
-  .mkt-hero-lead {
-    @apply m-0 mt-6 max-w-xl text-[16px] leading-relaxed text-ink-muted md:text-[18px] md:leading-[1.65];
-  }
-
-  .mkt-hero-actions {
-    @apply mt-10 flex flex-wrap gap-3;
-  }
-
-  .mkt-hero-metrics {
-    @apply mt-16 flex flex-wrap items-center gap-6 border-t border-border pt-10 md:gap-10;
-  }
-
-  .mkt-metric {
-    @apply flex flex-col gap-1;
-  }
-
-  .mkt-metric-value {
-    @apply text-[15px] font-semibold tracking-tight text-ink;
-  }
-
-  .mkt-metric-label {
-    @apply text-[13px] text-ink-muted;
-  }
-
-  .mkt-metric-divider {
-    @apply hidden h-8 w-px bg-border md:block;
-  }
-
-  .mkt-feature-grid {
-    @apply m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-4;
-  }
-
-  .mkt-feature-card {
-    @apply rounded-lg border border-border bg-white p-6 shadow-card transition-all duration-200 ease-smooth;
-  }
-
-  .mkt-feature-card:hover {
-    @apply border-border-strong shadow-elevated;
-    transform: translateY(-2px);
-  }
-
-  .mkt-feature-icon {
-    @apply mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface-muted text-ink-secondary;
-  }
-
-  .mkt-feature-title {
-    @apply m-0 text-[15px] font-semibold tracking-tight text-ink;
-  }
-
-  .mkt-feature-desc {
-    @apply m-0 mt-2 text-[14px] leading-relaxed text-ink-muted;
   }
 
   .mkt-product-frame {
@@ -1561,10 +1454,6 @@
   .mkt-product-compose {
     @apply mt-auto rounded-lg border border-dashed border-border px-4 py-3 text-[13px];
   }
-
-
-
-
 
   .mkt-hero-title-accent {
     @apply text-brand-accent;
@@ -1663,11 +1552,6 @@
   .landing-ai-desc {
     @apply m-0 mt-2 text-[14px] leading-relaxed text-ink-muted;
   }
-
-
-
-
-
 
   /* --- Cadre du format (remplace les anciens témoignages) --------------- */
   /* --- Utilitaires transverses ------------------------------------------ */
@@ -2127,15 +2011,6 @@
   }
 
   /* ——— Demo / AI thinking ——— */
-  .ai-thinking {
-    @apply flex items-center gap-3 rounded-lg border border-border bg-surface-muted/60 px-4 py-3 text-[14px] text-ink-muted;
-  }
-
-  .ai-thinking-dots {
-    @apply inline-flex h-2 w-8 gap-1;
-    background: radial-gradient(circle, currentColor 2px, transparent 2px) 0 50% / 8px 8px;
-    animation: ai-pulse 1.2s ease-in-out infinite;
-  }
 
   @keyframes ai-pulse {
     0%,
