@@ -45,6 +45,16 @@ export interface RoomSnapshot {
   absentParticipantDisplayName?: string | null;
 }
 
+/**
+ * Room telle qu'envoyée dans la liste globale (`roomsUpdated`, `GET /rooms`).
+ *
+ * Sans les messages : cette liste part à tous les clients connectés à chaque
+ * événement, seul le compteur est utile aux écrans de liste.
+ */
+export type RoomSummary = Omit<RoomSnapshot, "messages"> & {
+  messagesCount: number;
+};
+
 export interface DebatePresencePayload extends DebatePresenceEvent {
   roomId: string;
   snapshot?: RoomSnapshot | null;

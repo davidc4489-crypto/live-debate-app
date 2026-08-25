@@ -77,7 +77,7 @@ export function CreateDebateClient() {
     event.preventDefault();
     setError("");
 
-    const accessToken = getStoredAuth()?.session.accessToken;
+    const accessToken = getStoredAuth()?.session?.accessToken;
     if (!accessToken) {
       setError("Vous devez être connecté pour créer un débat.");
       setAuthOpen(true);

@@ -18,9 +18,9 @@ import {
 } from "@/lib/debate";
 import { fetchDebates, fetchProposedDebates, fetchScheduledDebates } from "@/lib/debates-api";
 import { addFavorite, fetchFavorites, removeFavorite } from "@/lib/favorites-api";
-import { mergeLiveRoomsIntoDebateList } from "@/lib/participant-roster";
+import { mergeLiveRoomsIntoDebateList, roomsSignature } from "@/lib/participant-roster";
 import { getSocket } from "@/lib/socket";
-import { RoomSnapshot } from "@/lib/types";
+import { RoomSummary } from "@/lib/types";
 import { useAuthSession } from "@/lib/useAuthSession";
 
 type ThemeFilter = DebateTheme | "Tous";
@@ -44,8 +44,9 @@ export function ExplorePageClient() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [error, setError] = useState("");
   const [favoritesError, setFavoritesError] = useState("");
-  const liveRoomsRef = useRef<RoomSnapshot[]>([]);
+  const liveRoomsRef = useRef<RoomSummary[]>([]);
   const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roomsSignatureRef = useRef<string>("");
 
   const refreshDebatesFromApi = useCallback(async () => {
     try {
@@ -117,10 +118,17 @@ export function ExplorePageClient() {
   useEffect(() => {
     const socket = getSocket();
 
-    const onRoomsUpdated = (rooms: RoomSnapshot[]) => {
+    const onRoomsUpdated = (rooms: RoomSummary[]) => {
       liveRoomsRef.current = rooms;
       setDebates((current) => mergeLiveRoomsIntoDebateList(current, rooms));
       setFavoriteDebates((current) => mergeLiveRoomsIntoDebateList(current, rooms));
+
+      // Un simple message ou un changement de tour ne modifie pas la liste :
+      // on ne relance les requêtes que si une room apparaît, disparaît ou
+      // change d'état.
+      const signature = roomsSignature(rooms);
+      if (signature === roomsSignatureRef.current) return;
+      roomsSignatureRef.current = signature;
 
       if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
       refetchTimerRef.current = setTimeout(() => {

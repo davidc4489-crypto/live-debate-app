@@ -38,7 +38,7 @@ export function Topbar() {
 
     const socket = getSocket();
     const subscribe = () => {
-      const token = getStoredAuth()?.session.accessToken;
+      const token = getStoredAuth()?.session?.accessToken;
       if (token) socket.emit("subscribeUser", { accessToken: token });
     };
 

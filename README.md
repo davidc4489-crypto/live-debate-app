@@ -15,6 +15,24 @@ MVP de débat en temps réel pour petits groupes (environ 10 utilisateurs), avec
 - suppression manuelle de messages (mode modérateur côté UI)
 - liste des rooms actives avec compteurs live (participants/spectateurs)
 
+### Modération & IA (Hugging Face)
+
+- **modération multilingue** — Detoxify `multilingual` (XLM-RoBERTa) : le
+  français est traité nativement, avec 7 catégories (insulte, menace, haine
+  identitaire…) et ~40 ms par message
+- **lexique FR/EN** en complément : rattrape l'obfuscation (`c0nn4rd`,
+  `c.o.n.n.a.r.d`) et prend le relais si le service ML est indisponible
+- **avertissement pédagogique** : motif du signalement, gravité estimée et
+  conseil de reformulation, plutôt qu'un refus opaque
+- **garde anti-spam** locale : flood, répétition, mur de caractères (sans modèle)
+- **indice de qualité argumentative** : structure, preuves, civilité, nuance —
+  retour privé à l'auteur et « climat du débat » affiché à tous
+- **classement thématique automatique** des débats (zero-shot, optionnel) :
+  sans lui, tous les débats restaient dans « Général »
+- **résilience** : circuit breaker, repli lexical, warmup asynchrone
+
+Détail complet : [docs/MODERATION.md](docs/MODERATION.md).
+
 ## Structure du projet
 
 ```txt
@@ -62,6 +80,7 @@ Dans le SQL Editor Supabase (ou via CLI), exécuter les migrations dans `supabas
 2. `00003_user_profiles.sql` (**obligatoire pour les profils et intérêts**)
 3. `00004_more_interests.sql` (optionnel — ~30 intérêts supplémentaires)
 4. `00005_follows_notifications.sql` (**abonnements + notifications**)
+5. `00014_moderation_v2.sql` (modération détaillée : catégories, gravité, langue)
 
 **Profils / intérêts** — si vous voyez `Could not find the table 'public.interests'` :
 
@@ -96,7 +115,21 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
+Au premier démarrage, les poids de Detoxify `multilingual` (~1,1 Go) sont
+téléchargés en tâche de fond : le service répond immédiatement et le lexique
+FR/EN assure la modération pendant ce temps.
+
+Pour développer sans télécharger le moindre modèle :
+
+```bash
+MOD_BACKEND=heuristic uvicorn app.main:app --reload --port 8000
+```
+
 Ajouter dans `backend/.env` : `MODERATION_SERVICE_URL=http://localhost:8000`
+
+Modèles optionnels (désactivés par défaut, voir `moderation-service/.env.example`) :
+`MOD_ENABLE_SENTIMENT`, `MOD_ENABLE_ZEROSHOT` (classement thématique des
+débats), `MOD_ENABLE_FRENCH_HATE`.
 
 Voir [docs/MODERATION.md](docs/MODERATION.md) pour l'architecture complète.
 
@@ -133,7 +166,10 @@ Frontend disponible sur `http://localhost:3000`.
 - `roomsUpdated` → liste globale des rooms
 - `roomUpdated` → état complet d'une room
 - `joinedRoom` → rôle attribué à l'utilisateur
-- `errorMessage` → erreurs métier
+- `errorMessage` → erreurs métier (dont `MODERATION_BLOCK`, `RATE_LIMIT`, `DUPLICATE`)
+- `moderationWarn` → message signalé : motifs, gravité, conseil de reformulation
+- `messageInsight` → retour privé à l'auteur (indice d'argumentation)
+- `debateInsights` → civilité et qualité moyennes du débat
 
 ## Déploiement
 
@@ -166,8 +202,23 @@ Configuration :
 
 Puis déployer.
 
+## Sécurité
+
+- **Ne jamais committer de clés** dans `*.env.example` : ces fichiers sont
+  versionnés. La `SUPABASE_SERVICE_ROLE_KEY` contourne toutes les RLS ; si elle
+  fuite, il faut la révoquer dans Supabase → Settings → API.
+- **CORS** restreint aux origines de `FRONTEND_URL`. Sans cette variable, le
+  backend accepte toutes les origines et le log l'annonce au démarrage.
+- **Validation** globale des entrées (`class-validator`) : tout champ non
+  déclaré dans un DTO est rejeté, chaque champ est typé et borné.
+- **Anti brute-force** : `/auth/signin` (10 / 5 min), `/auth/signup` (5 / h),
+  `/auth/forgot-password` (3 / 15 min), `/auth/reset-password` (5 / 15 min).
+- **Réinitialisation de mot de passe** : le chemin administrateur n'est ouvert
+  qu'aux jetons issus d'un lien email (revendication `amr`), jamais à un jeton
+  de session ordinaire. Les autres sessions sont invalidées après changement.
+- **Corps de requête** plafonné (`BODY_LIMIT`, 100 ko par défaut).
+
 ## Notes MVP
 
-- Pas d'authentification
-- Pas de persistance (reset à chaque redémarrage backend)
-- CORS ouvert à `*` (MVP uniquement)
+- Persistance Supabase (les rooms en mémoire sont restaurées depuis la base)
+- Les sessions sont renouvelées automatiquement avant expiration (`/auth/refresh`)

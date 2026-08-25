@@ -156,7 +156,8 @@ export function DebatePlanningClient({ debate }: DebatePlanningClientProps) {
 
         {debate.status === "scheduled" && scheduling?.scheduledAt ? (
           <p className="muted">
-            Débat planifié le <strong>{formatScheduledDate(scheduling.scheduledAt)}</strong>. La
+            Débat planifié le{" "}
+            <strong>{formatScheduledDate(scheduling.scheduledAt, { withTimeZoneLabel: true })}</strong>. La
             salle s&apos;ouvrira à l&apos;heure prévue ; vous aurez 1 h pour rejoindre tous les
             deux avant fermeture automatique.
           </p>
@@ -189,7 +190,7 @@ export function DebatePlanningClient({ debate }: DebatePlanningClientProps) {
           <div className="card" style={{ marginTop: "1rem" }}>
             <p>
               Proposition en attente :{" "}
-              <strong>{formatScheduledDate(pending.proposedAt)}</strong>
+              <strong>{formatScheduledDate(pending.proposedAt, { withTimeZoneLabel: true })}</strong>
             </p>
             {canRespond ? (
               <div className="hero-cta" style={{ marginTop: "0.75rem" }}>

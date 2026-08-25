@@ -1,5 +1,5 @@
 import { DebateListItem, DebateParticipant } from "@/lib/debate";
-import { RoomParticipantSlot, RoomSnapshot } from "@/lib/types";
+import { RoomParticipantSlot, RoomSummary } from "@/lib/types";
 
 const WAITING: DebateParticipant = {
   userId: null,
@@ -30,7 +30,7 @@ export function applyLiveRoster(
 }
 
 /** Convertit une room Socket.IO en carte débat (accueil) quand la ligne DB n'est pas encore visible. */
-export function roomSnapshotToListItem(room: RoomSnapshot): DebateListItem {
+export function roomSnapshotToListItem(room: RoomSummary): DebateListItem {
   const participants = rosterToParticipants(room.participantRoster) ?? [WAITING, WAITING];
   const isWaitingForOpponent =
     room.status !== "finished" && room.participants > 0 && room.participants < 2;
@@ -40,7 +40,7 @@ export function roomSnapshotToListItem(room: RoomSnapshot): DebateListItem {
     title: room.title,
     theme: "Général",
     participants,
-    messagesCount: room.messages.length,
+    messagesCount: room.messagesCount ?? 0,
     views: 0,
     spectators: room.spectators,
     createdAt: new Date().toISOString(),
@@ -51,7 +51,7 @@ export function roomSnapshotToListItem(room: RoomSnapshot): DebateListItem {
 
 export function mergeLiveRoomsIntoDebateList(
   debates: DebateListItem[],
-  rooms: RoomSnapshot[],
+  rooms: RoomSummary[],
 ): DebateListItem[] {
   const byId = new Map(debates.map((debate) => [debate.id, debate]));
 
@@ -70,4 +70,18 @@ export function mergeLiveRoomsIntoDebateList(
   return [...byId.values()].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
+}
+
+/**
+ * Signature de la liste des rooms : identité + statut + effectifs.
+ *
+ * `roomsUpdated` est émis à chaque message et à chaque changement de tour. Sans
+ * cette comparaison, chaque écran de liste relançait trois requêtes API à
+ * chaque message envoyé dans n'importe quel débat, pour tous les visiteurs.
+ */
+export function roomsSignature(rooms: RoomSummary[]): string {
+  return rooms
+    .map((room) => `${room.id}:${room.status}:${room.participants}:${room.spectators}`)
+    .sort()
+    .join("|");
 }

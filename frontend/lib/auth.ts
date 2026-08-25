@@ -14,7 +14,10 @@ export interface AuthSession {
 
 export interface AuthPayload {
   user: AuthUser;
-  session: AuthSession;
+  /** `null` tant que l'email n'est pas confirmé (aucune session ouverte). */
+  session: AuthSession | null;
+  requiresEmailConfirmation?: boolean;
+  message?: string;
 }
 
 const STORAGE_KEY = "ld_auth_session";
@@ -45,7 +48,7 @@ export function clearAuth(): void {
 
 export function getAuthHeaders(): Record<string, string> {
   const stored = getStoredAuth();
-  if (!stored?.session.accessToken) {
+  if (!stored?.session?.accessToken) {
     return {};
   }
   return {
@@ -95,7 +98,8 @@ export async function signUp(input: {
   }
 
   const payload = (await response.json()) as AuthPayload;
-  saveAuth(payload);
+  // Confirmation d'email activée : pas encore de session à stocker.
+  if (payload.session) saveAuth(payload);
   return payload;
 }
 
@@ -120,7 +124,7 @@ export async function signIn(input: {
 
 export async function signOut(): Promise<void> {
   const stored = getStoredAuth();
-  if (stored?.session.accessToken) {
+  if (stored?.session?.accessToken) {
     await fetch(`${getBackendUrl()}/auth/signout`, {
       method: "POST",
       headers: {
@@ -168,22 +172,94 @@ export async function resetPassword(
   }
 }
 
-export async function fetchMe(): Promise<AuthUser | null> {
-  const stored = getStoredAuth();
-  if (!stored?.session.accessToken) return null;
+/** Marge avant expiration à partir de laquelle on renouvelle le jeton. */
+const REFRESH_MARGIN_MS = 5 * 60 * 1000;
 
-  const response = await fetch(`${getBackendUrl()}/auth/me`, {
-    headers: {
-      Authorization: `Bearer ${stored.session.accessToken}`,
-    },
-  });
+let refreshInFlight: Promise<AuthPayload | null> | null = null;
+
+/**
+ * Échange le refresh token contre une nouvelle session.
+ *
+ * Les appels concurrents partagent la même promesse : sans cela, plusieurs
+ * composants montés en même temps consommeraient le même refresh token en
+ * parallèle et Supabase invaliderait la session.
+ */
+export async function refreshSession(): Promise<AuthPayload | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  const stored = getStoredAuth();
+  const refreshToken = stored?.session?.refreshToken;
+  if (!refreshToken) return null;
+
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetch(`${getBackendUrl()}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        clearAuth();
+        return null;
+      }
+
+      const payload = (await response.json()) as AuthPayload;
+      saveAuth(payload);
+      return payload;
+    } catch {
+      // Réseau indisponible : on garde la session locale, elle sera retentée.
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
+
+/** Renouvelle la session si elle expire bientôt. Sans effet sinon. */
+export async function ensureFreshSession(): Promise<AuthPayload | null> {
+  const stored = getStoredAuth();
+  if (!stored?.session?.refreshToken) return null;
+
+  const expiresAt = stored.session.expiresAt;
+  if (expiresAt && expiresAt * 1000 - Date.now() > REFRESH_MARGIN_MS) {
+    return stored;
+  }
+
+  return refreshSession();
+}
+
+export async function fetchMe(): Promise<AuthUser | null> {
+  const stored = await ensureFreshSession();
+  const session = (stored ?? getStoredAuth())?.session;
+  if (!session?.accessToken) return null;
+
+  const request = (token: string) =>
+    fetch(`${getBackendUrl()}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+  let response = await request(session.accessToken);
+
+  // 401 malgré la marge (horloge décalée, session révoquée) : un essai de plus.
+  if (response.status === 401) {
+    const refreshed = await refreshSession();
+    if (!refreshed?.session) {
+      clearAuth();
+      return null;
+    }
+    response = await request(refreshed.session.accessToken);
+  }
 
   if (!response.ok) {
-    clearAuth();
+    if (response.status === 401) clearAuth();
     return null;
   }
 
   const user = (await response.json()) as AuthUser;
-  saveAuth({ user, session: stored.session });
+  const current = getStoredAuth();
+  if (current?.session) saveAuth({ user, session: current.session });
   return user;
 }

@@ -41,16 +41,54 @@ export class DebateSchedulingService {
     private readonly notificationsPush: NotificationsPushService,
   ) {}
 
-  async getSchedulingState(debateId: string): Promise<DebateSchedulingStateDto> {
+  /**
+   * État de planification d'un débat.
+   *
+   * La page reste consultable par tous (c'est là qu'on se déclare intéressé),
+   * mais la négociation elle-même — identité de l'autre partie, historique des
+   * propositions — n'est renvoyée qu'aux deux participants.
+   */
+  async getSchedulingState(
+    debateId: string,
+    accessToken?: string,
+  ): Promise<DebateSchedulingStateDto> {
     const debate = await this.loadDebate(debateId);
-    const proposals = await this.loadProposals(debateId);
 
-    return {
+    let viewerId: string | null = null;
+    if (accessToken) {
+      try {
+        viewerId = (await this.authService.getMe(accessToken)).id;
+      } catch {
+        viewerId = null; // jeton expiré : on sert la vue publique
+      }
+    }
+
+    const isParticipant =
+      Boolean(viewerId) &&
+      (debate.created_by === viewerId || debate.interested_user_id === viewerId);
+
+    const publicState = {
       debateId: debate.id,
       status: debate.status as DebateSchedulingStateDto["status"],
       scheduledAt: debate.scheduled_at ?? null,
-      interestedUserId: debate.interested_user_id ?? null,
       createdBy: debate.created_by ?? null,
+    };
+
+    if (!isParticipant) {
+      return {
+        ...publicState,
+        // Un visiteur apprend qu'une place est prise, pas par qui.
+        interestedUserId: debate.interested_user_id ? "" : null,
+        pendingProposal: null,
+        proposals: [],
+      };
+    }
+
+    const proposals = await this.loadProposals(debateId);
+
+    return {
+      ...publicState,
+      interestedUserId: debate.interested_user_id ?? null,
       pendingProposal: proposals.find((p) => p.status === "pending") ?? null,
       proposals,
     };
@@ -116,22 +154,35 @@ export class DebateSchedulingService {
       throw new ForbiddenException("Vous ne pouvez pas répondre à votre propre proposition.");
     }
 
-    this.assertParticipant(debate, me.id);
+    this.assertCanNegotiate(debate, me.id);
 
     if (action === "accept") {
-      await this.markProposal(pending.id, "accepted");
+      // La date doit être encore valable au moment de l'acceptation.
+      this.assertFutureDate(pending.proposed_at);
+
       const supabase = this.supabaseService.getServiceClient();
-      const { error } = await supabase
+      // Le filtre sur `status` empêche de replanifier un débat déjà lancé,
+      // terminé ou annulé entre la proposition et la réponse.
+      const { data: updated, error } = await supabase
         .from("debates")
         .update({
           status: "scheduled",
           scheduled_at: pending.proposed_at,
         })
-        .eq("id", debateId);
+        .eq("id", debateId)
+        .eq("status", "proposed")
+        .select("id");
 
       if (error) {
         throw new BadRequestException(`Impossible de confirmer la date : ${error.message}`);
       }
+      if (!updated || updated.length === 0) {
+        throw new BadRequestException(
+          "Ce débat n'est plus en attente de planification.",
+        );
+      }
+
+      await this.markProposal(pending.id, "accepted");
 
       const formatted = this.formatDateFr(pending.proposed_at);
       const notifyIds = [debate.created_by, debate.interested_user_id].filter(
@@ -379,6 +430,14 @@ export class DebateSchedulingService {
     return null;
   }
 
+  private assertFutureDate(iso: string): void {
+    if (new Date(iso).getTime() <= Date.now()) {
+      throw new BadRequestException(
+        "Cette date est déjà passée. Proposez un nouveau créneau.",
+      );
+    }
+  }
+
   private parseFutureDate(iso: string): string {
     const date = new Date(iso);
     if (Number.isNaN(date.getTime())) {
@@ -390,6 +449,12 @@ export class DebateSchedulingService {
     return date.toISOString();
   }
 
+  /**
+   * Formate une date pour les notifications.
+   *
+   * Le fuseau est explicite : le serveur (Render) tourne en UTC, sans quoi les
+   * messages annoncent une heure décalée de 1 à 2 h pour les utilisateurs.
+   */
   private formatDateFr(iso: string): string {
     return new Date(iso).toLocaleString("fr-FR", {
       weekday: "long",
@@ -398,6 +463,7 @@ export class DebateSchedulingService {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: process.env.APP_TIMEZONE || "Europe/Paris",
     });
   }
 

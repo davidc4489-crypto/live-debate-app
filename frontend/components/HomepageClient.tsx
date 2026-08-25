@@ -22,7 +22,7 @@ import { fetchDebates, fetchProposedDebates, fetchScheduledDebates } from "@/lib
 import { addFavorite, fetchFavorites, removeFavorite } from "@/lib/favorites-api";
 import { mergeLiveRoomsIntoDebateList } from "@/lib/participant-roster";
 import { getSocket } from "@/lib/socket";
-import { RoomSnapshot } from "@/lib/types";
+import { RoomSummary } from "@/lib/types";
 import { useAuthSession } from "@/lib/useAuthSession";
 
 type ThemeFilter = DebateTheme | "Tous";
@@ -46,7 +46,7 @@ export function HomepageClient() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [error, setError] = useState("");
   const [favoritesError, setFavoritesError] = useState("");
-  const liveRoomsRef = useRef<RoomSnapshot[]>([]);
+  const liveRoomsRef = useRef<RoomSummary[]>([]);
   const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshDebatesFromApi = useCallback(async () => {
@@ -119,7 +119,7 @@ export function HomepageClient() {
   useEffect(() => {
     const socket = getSocket();
 
-    const onRoomsUpdated = (rooms: RoomSnapshot[]) => {
+    const onRoomsUpdated = (rooms: RoomSummary[]) => {
       liveRoomsRef.current = rooms;
       setDebates((current) => mergeLiveRoomsIntoDebateList(current, rooms));
       setFavoriteDebates((current) => mergeLiveRoomsIntoDebateList(current, rooms));

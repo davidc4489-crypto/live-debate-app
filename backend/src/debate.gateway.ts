@@ -27,6 +27,8 @@ import {
 import { AuthService } from "./auth/auth.service";
 import { MessageFlagsService } from "./moderation/message-flags.service";
 import { ModerationService } from "./moderation/moderation.service";
+import { SpamGuard } from "./moderation/spam-guard";
+import { DebateInsightsService } from "./moderation/debate-insights.service";
 import { DebateCreationService } from "./debates/debate-creation.service";
 import { DebateFinishService } from "./debates/debate-finish.service";
 import { DebateLifecycleService } from "./debates/debate-lifecycle.service";
@@ -56,6 +58,7 @@ export class DebateGateway
   private turnInterval: NodeJS.Timeout;
   private cancelInterval: NodeJS.Timeout;
   private scheduledInterval: NodeJS.Timeout;
+  private moderationPruneInterval: NodeJS.Timeout;
   private cancelExpiredDebatesRunning = false;
   private activateScheduledRunning = false;
 
@@ -63,6 +66,8 @@ export class DebateGateway
     private readonly roomsService: RoomsService,
     private readonly authService: AuthService,
     private readonly moderationService: ModerationService,
+    private readonly spamGuard: SpamGuard,
+    private readonly debateInsights: DebateInsightsService,
     private readonly messageFlagsService: MessageFlagsService,
     private readonly debateCreationService: DebateCreationService,
     private readonly debateFinishService: DebateFinishService,
@@ -83,15 +88,9 @@ export class DebateGateway
       });
 
       this.roomsService.listRooms().forEach((room) => {
-        const snapshot = this.roomsService.getRoomSnapshot(room.id);
-        if (!snapshot) return;
-        this.server.to(room.id).emit("tick", {
-          roomId: room.id,
-          remainingSeconds: snapshot.remainingSeconds,
-          currentSpeaker: snapshot.currentSpeaker,
-          currentSpeakerName: snapshot.currentSpeakerName,
-          turnEndsAt: snapshot.turnEndsAt,
-        });
+        const tick = this.roomsService.getTickState(room.id);
+        if (!tick) return;
+        this.server.to(room.id).emit("tick", { roomId: room.id, ...tick });
       });
     }, 1000);
 
@@ -101,6 +100,11 @@ export class DebateGateway
 
     this.scheduledInterval = setInterval(() => {
       void this.runActivateScheduledDebates();
+    }, 60_000);
+
+    // Purge périodique de l'état anti-spam (auteurs inactifs).
+    this.moderationPruneInterval = setInterval(() => {
+      this.spamGuard.prune();
     }, 60_000);
   }
 
@@ -179,6 +183,7 @@ export class DebateGateway
     clearInterval(this.turnInterval);
     clearInterval(this.cancelInterval);
     clearInterval(this.scheduledInterval);
+    clearInterval(this.moderationPruneInterval);
   }
 
   handleConnection(client: Socket) {
@@ -1009,6 +1014,7 @@ export class DebateGateway
               message: `${session.displayName} a terminé le débat.`,
             });
 
+            this.debateInsights.forgetRoom(roomId);
             this.server.to(roomId).emit("debateEnded", {
               roomId,
               endedAt,
@@ -1043,6 +1049,17 @@ export class DebateGateway
       return;
     }
 
+    // 1. Anti-spam local : aucun appel modèle pour du flood ou de la répétition.
+    const spam = this.spamGuard.check(session.userId ?? client.id, text);
+    if (spam.blocked) {
+      client.emit("errorMessage", {
+        message: spam.reason,
+        code: spam.code,
+        retryAfterMs: spam.retryAfterMs,
+      });
+      return;
+    }
+
     const warnAccepted = Boolean(
       payload.warnToken &&
         this.moderationService.consumeWarnToken(payload.warnToken, client.id, text),
@@ -1054,8 +1071,10 @@ export class DebateGateway
 
     if (moderation?.action === "block") {
       client.emit("errorMessage", {
-        message: this.moderationService.getBlockMessage(),
+        message: this.moderationService.getBlockMessage(moderation),
         code: "MODERATION_BLOCK",
+        categories: moderation.categories ?? [],
+        suggestion: moderation.suggestion ?? null,
       });
       return;
     }
@@ -1072,7 +1091,10 @@ export class DebateGateway
           threat: moderation.threat,
           identity_hate: moderation.identity_hate,
         },
-        message: this.moderationService.getWarnMessage(),
+        categories: moderation.categories ?? [],
+        suggestion: moderation.suggestion ?? null,
+        severity: moderation.severity ?? moderation.toxicity,
+        message: this.moderationService.getWarnMessage(moderation),
       });
       return;
     }
@@ -1088,7 +1110,23 @@ export class DebateGateway
     if (!moderation) {
       moderation = await this.moderationService.moderateText(text);
     }
-    void this.messageFlagsService.saveFlag(result.message.id, moderation);
+
+    // Analyse qualitative (hors chemin critique : n'empêche jamais l'envoi).
+    void this.debateInsights
+      .analyzeMessage(session.roomId, result.message.id, text, moderation)
+      .then((insight) => {
+        if (!insight) return;
+        void this.messageFlagsService.saveFlag(
+          result.message!.id,
+          moderation!,
+          insight.qualityScore,
+        );
+        client.emit("messageInsight", insight.forAuthor);
+        this.server.to(session.roomId).emit("debateInsights", insight.forRoom);
+      })
+      .catch(() => {
+        void this.messageFlagsService.saveFlag(result.message!.id, moderation!);
+      });
 
     const snapshot = this.roomsService.getRoomSnapshot(session.roomId);
     const switchedRoom = this.roomsService.switchTurn(session.roomId);

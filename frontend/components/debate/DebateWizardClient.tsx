@@ -72,7 +72,7 @@ export function DebateWizardClient() {
   async function launchHuman() {
     if (!requireAuth()) return;
 
-    const accessToken = getStoredAuth()?.session.accessToken;
+    const accessToken = getStoredAuth()?.session?.accessToken;
     if (!accessToken) {
       setAuthOpen(true);
       return;

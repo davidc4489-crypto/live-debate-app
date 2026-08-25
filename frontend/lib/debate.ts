@@ -186,13 +186,32 @@ export function formatDebateDate(isoDate: string): string {
   return `il y a ${diffDays} j`;
 }
 
-export function formatScheduledDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleString("fr-FR", {
+/**
+ * Fuseau d'affichage des dates de débat.
+ *
+ * Il est explicite pour deux raisons :
+ * 1. les cartes de débat sont rendues côté serveur (UTC sur Render) alors que
+ *    le panneau de planification est rendu côté client — sans fuseau fixe, la
+ *    même date s'affichait avec deux heures différentes selon l'écran ;
+ * 2. les notifications envoyées par le backend utilisent le même fuseau, donc
+ *    l'heure annoncée par email correspond à celle affichée dans l'interface.
+ */
+export const DEBATE_TIME_ZONE =
+  process.env.NEXT_PUBLIC_APP_TIMEZONE || "Europe/Paris";
+
+export function formatScheduledDate(
+  isoDate: string,
+  options?: { withTimeZoneLabel?: boolean },
+): string {
+  const formatted = new Date(isoDate).toLocaleString("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: DEBATE_TIME_ZONE,
   });
+
+  return options?.withTimeZoneLabel ? `${formatted} (heure de Paris)` : formatted;
 }

@@ -1,3 +1,6 @@
+import { IsISO8601 } from "class-validator";
+
 export class ProposeScheduleDto {
-  proposedAt?: string;
+  @IsISO8601({}, { message: "Date invalide" })
+  proposedAt!: string;
 }

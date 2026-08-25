@@ -995,8 +995,50 @@ export class RoomsService implements OnModuleDestroy {
     return this.toPublicRoom(room);
   }
 
+  /**
+   * Version allégée d'une room pour la liste globale.
+   *
+   * `roomsUpdated` est diffusé à **tous** les sockets connectés à chaque
+   * message, connexion ou changement de tour. Y inclure `messages` revenait à
+   * renvoyer l'historique complet de tous les débats à tout le monde, à chaque
+   * message envoyé. Les écrans de liste n'ont besoin que du compteur.
+   */
+  toRoomSummary(room: RoomState) {
+    const { messages, ...rest } = this.toPublicRoom(room);
+    return { ...rest, messagesCount: messages.length };
+  }
+
+  /** Liste globale (sans les messages) — voir `toRoomSummary`. */
   getRoomsSnapshot() {
-    return this.listRooms().map((room) => this.toPublicRoom(room));
+    return this.listRooms().map((room) => this.toRoomSummary(room));
+  }
+
+  /**
+   * État minimal du tour en cours, pour le tick d'une seconde.
+   *
+   * Reconstruire un snapshot complet chaque seconde et pour chaque room
+   * (roster + messages inclus) coûtait cher pour quatre champs scalaires.
+   */
+  getTickState(roomId: string): {
+    remainingSeconds: number;
+    currentSpeaker: string | null;
+    currentSpeakerName: string | null;
+    turnEndsAt: number | null;
+  } | null {
+    const room = this.rooms[roomId];
+    if (!room) return null;
+    // Rien à décompter tant que le débat n'est pas réellement en cours.
+    if (!room.turnEndsAt || room.status === "finished" || room.status === "cancelled") {
+      return null;
+    }
+
+    const session = room.currentSpeaker ? this.sessions.get(room.currentSpeaker) : undefined;
+    return {
+      remainingSeconds: Math.max(0, Math.ceil((room.turnEndsAt - Date.now()) / 1000)),
+      currentSpeaker: room.currentSpeaker,
+      currentSpeakerName: session?.displayName || null,
+      turnEndsAt: room.turnEndsAt,
+    };
   }
 
   tickTurns(): string[] {

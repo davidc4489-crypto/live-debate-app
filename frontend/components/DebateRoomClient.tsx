@@ -9,6 +9,9 @@ import { LeaveDebateModal } from "@/components/LeaveDebateModal";
 import { ParticipantAbsentModal } from "@/components/ParticipantAbsentModal";
 import { PauseStateBanner } from "@/components/PauseStateBanner";
 import { ParticipantPill } from "@/components/ParticipantPill";
+import { DebateInsightsBar } from "@/components/moderation/DebateInsightsBar";
+import { MessageInsightHint } from "@/components/moderation/MessageInsightHint";
+import { ModerationWarnBanner } from "@/components/moderation/ModerationWarnBanner";
 import { DebateProgress } from "@/components/ui/DebateProgress";
 import { DebateThread } from "@/components/ui/DebateThread";
 import { getStoredAuth } from "@/lib/auth";
@@ -17,6 +20,12 @@ import { DebateDetail } from "@/lib/debate";
 import { rosterToParticipants } from "@/lib/participant-roster";
 import { fetchDebate } from "@/lib/debates-api";
 import { getSocket } from "@/lib/socket";
+import {
+  DebateInsights,
+  MessageInsight,
+  ModerationWarnPayload,
+  categoryLabel,
+} from "@/lib/moderation";
 import { DebatePresencePayload, RoomSnapshot, UserRole } from "@/lib/types";
 import { useAuthSession } from "@/lib/useAuthSession";
 
@@ -30,13 +39,6 @@ interface JoinedRoomPayload {
   role: UserRole;
   displayName: string;
   userId: string | null;
-}
-
-interface ModerationWarnPayload {
-  roomId: string;
-  text: string;
-  warnToken: string;
-  message: string;
 }
 
 type PendingSocketAction =
@@ -65,6 +67,12 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   const [error, setError] = useState("");
   const [errorIsBlock, setErrorIsBlock] = useState(false);
   const [moderationWarn, setModerationWarn] = useState<ModerationWarnPayload | null>(null);
+  const [messageInsight, setMessageInsight] = useState<MessageInsight | null>(null);
+  const [debateInsights, setDebateInsights] = useState<DebateInsights | null>(null);
+  const [blockDetails, setBlockDetails] = useState<{
+    categories: string[];
+    suggestion: string | null;
+  } | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [endModalOpen, setEndModalOpen] = useState(false);
   const [endingDebate, setEndingDebate] = useState(false);
@@ -237,16 +245,35 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       void refreshDebate();
     };
 
-    const onError = (payload: { message: string; code?: string }) => {
+    const onError = (payload: {
+      message: string;
+      code?: string;
+      categories?: string[];
+      suggestion?: string | null;
+    }) => {
       if (payload.code === "MODERATION_BLOCK") {
         setModerationWarn(null);
         setError(payload.message);
         setErrorIsBlock(true);
+        setBlockDetails({
+          categories: payload.categories ?? [],
+          suggestion: payload.suggestion ?? null,
+        });
+        return;
+      }
+
+      // Anti-spam : même traitement visuel qu'un blocage, sans détail modèle.
+      if (payload.code === "RATE_LIMIT" || payload.code === "DUPLICATE" || payload.code === "FLOOD_CHARS") {
+        setError(payload.message);
+        setErrorIsBlock(true);
+        setBlockDetails(null);
+        clearPendingActionLoader();
         return;
       }
 
       setError(payload.message);
       setErrorIsBlock(false);
+      setBlockDetails(null);
       clearPendingActionLoader();
     };
 
@@ -254,8 +281,18 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       if (payload.roomId !== roomId) return;
       setError("");
       setErrorIsBlock(false);
+      setBlockDetails(null);
       setModerationWarn(payload);
       setDraft(payload.text);
+    };
+
+    const onMessageInsight = (payload: MessageInsight) => {
+      setMessageInsight(payload);
+    };
+
+    const onDebateInsights = (payload: DebateInsights) => {
+      if (payload.roomId !== roomId) return;
+      setDebateInsights(payload);
     };
 
     const onTick = (payload: { roomId: string; remainingSeconds: number }) => {
@@ -313,6 +350,8 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     socket.on("debatePresence", onDebatePresence);
     socket.on("errorMessage", onError);
     socket.on("moderationWarn", onModerationWarn);
+    socket.on("messageInsight", onMessageInsight);
+    socket.on("debateInsights", onDebateInsights);
     socket.on("tick", onTick);
 
     return () => {
@@ -325,13 +364,15 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       socket.off("debatePresence", onDebatePresence);
       socket.off("errorMessage", onError);
       socket.off("moderationWarn", onModerationWarn);
+      socket.off("messageInsight", onMessageInsight);
+      socket.off("debateInsights", onDebateInsights);
       socket.off("tick", onTick);
     };
   }, [roomId, refreshDebate, clearPendingActionLoader]);
 
   useEffect(() => {
     const socket = getSocket();
-    const accessToken = getStoredAuth()?.session.accessToken;
+    const accessToken = getStoredAuth()?.session?.accessToken;
 
     const rejoin = () => {
       if (accessToken) {
@@ -494,7 +535,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   }
 
   function confirmValidateStart() {
-    const accessToken = getStoredAuth()?.session.accessToken;
+    const accessToken = getStoredAuth()?.session?.accessToken;
     if (!accessToken) {
       setError("Connectez-vous pour démarrer le débat.");
       return;
@@ -505,7 +546,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   }
 
   function confirmEndDebate() {
-    const accessToken = getStoredAuth()?.session.accessToken;
+    const accessToken = getStoredAuth()?.session?.accessToken;
     if (!accessToken) {
       setError("Connectez-vous pour mettre fin au débat.");
       return;
@@ -516,7 +557,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   }
 
   function emitLeaveDebate(action: "pause" | "finish") {
-    const accessToken = getStoredAuth()?.session.accessToken;
+    const accessToken = getStoredAuth()?.session?.accessToken;
     if (!accessToken) {
       setError("Connectez-vous pour quitter le débat.");
       return;
@@ -528,7 +569,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   }
 
   function confirmRequestResume() {
-    const accessToken = getStoredAuth()?.session.accessToken;
+    const accessToken = getStoredAuth()?.session?.accessToken;
     if (!accessToken) {
       setError("Connectez-vous pour reprendre le débat.");
       return;
@@ -540,7 +581,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   }
 
   function confirmValidateResume() {
-    const accessToken = getStoredAuth()?.session.accessToken;
+    const accessToken = getStoredAuth()?.session?.accessToken;
     if (!accessToken) {
       setError("Connectez-vous pour valider la reprise.");
       return;
@@ -552,7 +593,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   }
 
   function emitResolveAbsent(action: "pause" | "finish") {
-    const accessToken = getStoredAuth()?.session.accessToken;
+    const accessToken = getStoredAuth()?.session?.accessToken;
     if (!accessToken) {
       setError("Connectez-vous pour continuer.");
       return;
@@ -635,7 +676,18 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       </section>
 
       {error ? (
-        <p className={errorIsBlock ? "auth-error moderation-block-msg" : "muted"}>{error}</p>
+        <div className={errorIsBlock ? "moderation-block-box" : undefined}>
+          <p className={errorIsBlock ? "auth-error moderation-block-msg" : "muted"}>{error}</p>
+          {blockDetails && blockDetails.categories.length > 0 ? (
+            <ul className="moderation-chips" aria-label="Motifs du blocage">
+              {blockDetails.categories.map((category) => (
+                <li key={category} className="moderation-chip moderation-chip-danger">
+                  {categoryLabel(category)}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
 
       {isCancelled ? (
@@ -694,18 +746,14 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       />
 
       {moderationWarn && debateIsLive ? (
-        <section className="card moderation-warn-banner" role="alert">
-          <p>{moderationWarn.message}</p>
-          <div className="moderation-warn-actions">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setModerationWarn(null)}>
-              Modifier
-            </button>
-            <button type="button" className="btn btn-primary btn-sm" onClick={confirmWarnedMessage}>
-              Envoyer quand même
-            </button>
-          </div>
-        </section>
+        <ModerationWarnBanner
+          warn={moderationWarn}
+          onEdit={() => setModerationWarn(null)}
+          onSendAnyway={confirmWarnedMessage}
+        />
       ) : null}
+
+      {debateIsLive ? <DebateInsightsBar insights={debateInsights} /> : null}
 
       <section className="chat-stream card">
         <DebateThread
@@ -740,6 +788,12 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
 
       {debateIsLive ? (
         <section className="chat-input-wrap card">
+          {isParticipant ? (
+            <MessageInsightHint
+              insight={messageInsight}
+              onDismiss={() => setMessageInsight(null)}
+            />
+          ) : null}
           <form onSubmit={submitMessage} className="chat-form">
             <div className="chat-input-field">
               <input
@@ -748,6 +802,8 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
                 placeholder={role === "spectator" ? "Mode lecture seule" : "Écrivez votre argument..."}
                 disabled={!canSend}
                 maxLength={MAX_MESSAGE_LENGTH}
+                aria-label="Votre argument"
+                autoComplete="off"
               />
               {canSend ? (
                 <span

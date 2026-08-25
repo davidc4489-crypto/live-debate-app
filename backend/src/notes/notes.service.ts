@@ -31,6 +31,9 @@ function unwrapOne<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
 
+/** Nombre de notes renvoyées par la liste du carnet. */
+const NOTES_PAGE_SIZE = 200;
+
 function excerpt(text: string, max = 120): string {
   const cleaned = text.trim();
   if (cleaned.length <= max) return cleaned;
@@ -67,7 +70,9 @@ export class NotesService {
       `,
       )
       .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      // Sans plafond, un carnet chargé renvoyait tout l'historique à chaque ouverture.
+      .limit(NOTES_PAGE_SIZE);
 
     if (error) {
       throw new BadRequestException(`Impossible de charger les notes : ${error.message}`);

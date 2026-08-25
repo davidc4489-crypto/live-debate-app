@@ -85,6 +85,12 @@ export class DebateProposedService {
     }
 
     const { error } = await supabase.from("debates").insert(row);
+    if (!error) {
+      // Thème déduit du titre en tâche de fond (voir DebateCreationService).
+      void this.debateCreationService
+        .assignCategoryFromTitle(debateId, trimmedTitle)
+        .catch(() => undefined);
+    }
     if (error) {
       if (/proposed|scheduled_at|interested_user|enum/i.test(error.message)) {
         throw new BadRequestException(

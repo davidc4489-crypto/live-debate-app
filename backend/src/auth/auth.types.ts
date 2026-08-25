@@ -14,5 +14,9 @@ export interface AuthSessionDto {
 
 export interface AuthResponseDto {
   user: AuthUserDto;
-  session: AuthSessionDto;
+  /** `null` quand la confirmation d'email est requise avant toute session. */
+  session: AuthSessionDto | null;
+  /** Présent uniquement à l'inscription avec confirmation d'email activée. */
+  requiresEmailConfirmation?: boolean;
+  message?: string;
 }

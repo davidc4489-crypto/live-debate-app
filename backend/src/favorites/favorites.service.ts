@@ -14,20 +14,26 @@ interface FavoriteRow {
   debates: DebateRow | DebateRow[] | null;
 }
 
+// Compteurs agrégés en base (voir `DebatesService.listDebates`) : on ne
+// rapatrie pas une ligne par message et par vue juste pour les compter.
 const DEBATE_SELECT = `
   id,
   title,
   status,
   created_at,
+  paused_by_user_id,
+  resume_requested_at,
+  scheduled_at,
+  interested_user_id,
   categories ( name ),
-  messages ( id ),
+  messages ( count ),
   debate_participants (
     role,
     position,
     user_id,
     profiles ( id, username, first_name, last_name, email )
   ),
-  debate_views ( id )
+  debate_views ( count )
 `;
 
 function unwrapOne<T>(value: T | T[] | null): T | null {
@@ -74,7 +80,7 @@ export class FavoritesService {
       throw new BadRequestException(`Impossible de charger les favoris : ${error.message}`);
     }
 
-    const debateRows = (data as FavoriteRow[])
+    const debateRows = (data as unknown as FavoriteRow[])
       .map((row) => unwrapOne(row.debates))
       .filter((debate): debate is DebateRow => Boolean(debate));
 

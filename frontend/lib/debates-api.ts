@@ -180,9 +180,16 @@ export async function expressDebateInterest(debateId: string): Promise<void> {
   }
 }
 
+/**
+ * État de négociation d'une date.
+ *
+ * Réservé aux deux parties du débat : l'appel est authentifié (le backend
+ * refuse désormais de divulguer les identifiants des participants).
+ */
 export async function fetchSchedulingState(debateId: string): Promise<DebateSchedulingState> {
   const response = await fetch(`${getBackendUrl()}/debates/${debateId}/scheduling`, {
     cache: "no-store",
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {

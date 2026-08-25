@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSocket } from "@/lib/socket";
-import { RoomSnapshot } from "@/lib/types";
+import { RoomSummary } from "@/lib/types";
 
 export function RoomListClient() {
-  const [rooms, setRooms] = useState<RoomSnapshot[]>([]);
+  const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,7 +14,7 @@ export function RoomListClient() {
   useEffect(() => {
     const socket = getSocket();
 
-    const onRoomsUpdated = (nextRooms: RoomSnapshot[]) => setRooms(nextRooms);
+    const onRoomsUpdated = (nextRooms: RoomSummary[]) => setRooms(nextRooms);
     const onError = (payload: { message: string }) => setError(payload.message);
 
     socket.on("roomsUpdated", onRoomsUpdated);
@@ -22,7 +22,7 @@ export function RoomListClient() {
 
     fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001"}/rooms`)
       .then((response) => response.json())
-      .then((data: RoomSnapshot[]) => setRooms(data))
+      .then((data: RoomSummary[]) => setRooms(data))
       .catch(() => setError("Impossible de charger les rooms."));
 
     socket.emit("getRooms");

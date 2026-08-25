@@ -6,6 +6,16 @@ services:
     environment:
       MOD_THRESHOLD_BLOCK: "0.75"
       MOD_THRESHOLD_WARN: "0.50"
+      # Modèle principal : Detoxify multilingue (français natif, 7 catégories)
+      MOD_BACKEND: auto
+      MOD_DETOXIFY_CHECKPOINT: multilingual
+      # Modèles optionnels (téléchargements supplémentaires) :
+      # MOD_ENABLE_SENTIMENT: "true"
+      # MOD_ENABLE_ZEROSHOT: "true"
+      HF_HOME: /app/.cache/huggingface
+    volumes:
+      # Persiste les poids entre les redémarrages du conteneur
+      - hf-cache:/app/.cache/huggingface
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -23,9 +33,15 @@ services:
       PORT: 3001
       MODERATION_SERVICE_URL: http://moderation:8000
       MODERATION_TIMEOUT_MS: 300
+      MODERATION_ANALYZE_TIMEOUT_MS: 500
       MODERATION_FALLBACK_ON_DOWN: warn
+      MODERATION_CIRCUIT_FAILURES: 3
+      MODERATION_CIRCUIT_RESET_MS: 15000
     env_file:
       - ./backend/.env
     depends_on:
       moderation:
         condition: service_healthy
+
+volumes:
+  hf-cache:

@@ -72,12 +72,22 @@ export function AuthModal({
       }
 
       if (isSignUp) {
-        await signUp({
+        const payload = await signUp({
           email,
           password,
           firstName: firstName || undefined,
           lastName: lastName || undefined,
         });
+
+        // Confirmation d'email activée : le compte existe mais aucune session
+        // n'est ouverte. On informe au lieu de fermer sur un état incohérent.
+        if (!payload.session) {
+          setInfo(
+            payload.message ??
+              "Compte créé. Vérifiez votre boîte mail pour confirmer votre inscription.",
+          );
+          return;
+        }
       } else {
         await signIn({ email, password });
       }
@@ -164,7 +174,7 @@ export function AuthModal({
               <input
                 type="password"
                 required
-                minLength={6}
+                minLength={isSignUp ? 8 : undefined}
                 autoComplete={isSignUp ? "new-password" : "current-password"}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}

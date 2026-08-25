@@ -76,6 +76,28 @@
   textarea:disabled {
     @apply cursor-not-allowed bg-surface-subtle opacity-70;
   }
+
+  /* Navigation au clavier : sans cet anneau, le focus était invisible sur les
+     boutons et les liens (seuls les champs de saisie étaient stylés). */
+  a:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  summary:focus-visible,
+  [tabindex]:not([tabindex="-1"]):focus-visible {
+    @apply rounded-md outline-none ring-2 ring-brand/40 ring-offset-2 ring-offset-surface;
+  }
+
+  /* Respecte le réglage système « réduire les animations ». */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 @layer components {
@@ -794,6 +816,169 @@
 
   .moderation-warn-actions {
     @apply mt-3 flex flex-wrap gap-2;
+  }
+
+  /* --- Modération v2 : motifs, gravité, conseils ------------------------ */
+  .moderation-warn-head {
+    @apply flex items-start gap-2;
+  }
+
+  .moderation-warn-icon {
+    @apply text-base leading-6;
+  }
+
+  .moderation-warn-title {
+    @apply m-0 font-medium text-warning-text;
+  }
+
+  .moderation-chips {
+    @apply m-0 mt-2 flex list-none flex-wrap gap-1.5 p-0;
+  }
+
+  .moderation-chip {
+    @apply rounded-full border border-warning-text/20 bg-white/70 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-warning-text;
+  }
+
+  .moderation-chip-danger {
+    @apply border-danger-text/20 bg-white/70 text-danger-text;
+  }
+
+  .moderation-warn-tip {
+    @apply mt-2 rounded-md bg-white/60 px-3 py-2 text-[13px] leading-relaxed text-ink-secondary;
+  }
+
+  .moderation-severity {
+    @apply mt-3 flex items-center gap-2 text-[11px] text-ink-muted;
+  }
+
+  .moderation-severity-label {
+    @apply shrink-0;
+  }
+
+  .moderation-severity-track {
+    @apply h-1.5 flex-1 overflow-hidden rounded-full bg-warning-text/10;
+  }
+
+  .moderation-severity-fill {
+    @apply h-full rounded-full bg-warning-text/60 transition-all duration-500;
+  }
+
+  .moderation-severity-value {
+    @apply w-9 shrink-0 text-right font-medium tabular-nums;
+  }
+
+  .moderation-block-box {
+    @apply flex flex-col gap-1;
+  }
+
+  /* --- Indicateurs live du débat --------------------------------------- */
+  .debate-insights {
+    @apply flex flex-col gap-3;
+  }
+
+  .debate-insights-head {
+    @apply flex flex-wrap items-baseline justify-between gap-2;
+  }
+
+  .debate-insights-head h3 {
+    @apply m-0 text-[13px] font-semibold uppercase tracking-wide text-ink-muted;
+  }
+
+  .debate-insights-meta {
+    @apply text-[12px] text-ink-faint;
+  }
+
+  .debate-insights-gauges {
+    @apply grid gap-4 sm:grid-cols-2;
+  }
+
+  .insight-gauge {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .insight-gauge-head {
+    @apply flex items-baseline justify-between gap-2;
+  }
+
+  .insight-gauge-label {
+    @apply text-[13px] font-medium text-ink-secondary;
+  }
+
+  .insight-gauge-value {
+    @apply text-[15px] font-semibold tabular-nums text-ink;
+  }
+
+  .insight-gauge-track {
+    @apply h-2 overflow-hidden rounded-full bg-surface-subtle;
+  }
+
+  .insight-gauge-fill {
+    @apply h-full rounded-full transition-[width] duration-700 ease-out;
+  }
+
+  .insight-gauge-good .insight-gauge-fill {
+    @apply bg-success-text/70;
+  }
+
+  .insight-gauge-medium .insight-gauge-fill {
+    @apply bg-warning-text/70;
+  }
+
+  .insight-gauge-low .insight-gauge-fill {
+    @apply bg-danger-text/70;
+  }
+
+  .insight-gauge-hint {
+    @apply m-0 text-[11px] leading-snug text-ink-faint;
+  }
+
+  /* --- Retour privé sur le message envoyé ------------------------------- */
+  .message-insight {
+    @apply mb-3 rounded-[var(--radius)] border px-3 py-2.5;
+  }
+
+  .message-insight-good {
+    @apply border-success-text/15 bg-success-soft;
+  }
+
+  .message-insight-medium {
+    @apply border-warning-text/15 bg-warning-soft;
+  }
+
+  .message-insight-low {
+    @apply border-danger-text/15 bg-danger-soft;
+  }
+
+  .message-insight-head {
+    @apply flex items-start gap-3;
+  }
+
+  .message-insight-score {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/80 text-[13px] font-semibold tabular-nums text-ink;
+  }
+
+  .message-insight-title {
+    @apply m-0 text-[13px] font-medium text-ink-secondary;
+  }
+
+  .message-insight-signals {
+    @apply m-0 mt-1 flex list-none flex-wrap gap-x-3 gap-y-0.5 p-0 text-[11px];
+  }
+
+  .signal-positive {
+    @apply text-success-text;
+  }
+
+  .signal-negative {
+    @apply text-danger-text;
+  }
+
+  .message-insight-close {
+    @apply ml-auto shrink-0 rounded px-1.5 text-lg leading-none text-ink-faint transition-colors hover:text-ink;
+  }
+
+  .message-insight-tips {
+    @apply m-0 mt-2 list-disc space-y-0.5 pl-5 text-[12px] leading-relaxed text-ink-secondary;
   }
 
   .chat-char-count.at-limit {

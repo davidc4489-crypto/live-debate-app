@@ -1,3 +1,4 @@
+import { DEBATE_TIME_ZONE } from "./debate";
 export interface Interest {
   id: string;
   name: string;
@@ -93,8 +94,11 @@ export function getProfileScoreLabel(score: number): string {
 }
 
 export function formatMemberSince(iso: string): string {
+  // Fuseau explicite : ce libellé peut être rendu côté serveur (UTC) comme côté
+  // client, et un « membre depuis » qui change de mois selon l'écran fait tache.
   return new Date(iso).toLocaleDateString("fr-FR", {
     month: "long",
     year: "numeric",
+    timeZone: DEBATE_TIME_ZONE,
   });
 }

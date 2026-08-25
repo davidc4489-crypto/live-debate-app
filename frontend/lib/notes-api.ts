@@ -105,5 +105,5 @@ export async function deleteNote(id: string): Promise<void> {
 }
 
 export function isAuthenticated(): boolean {
-  return Boolean(getStoredAuth()?.session.accessToken);
+  return Boolean(getStoredAuth()?.session?.accessToken);
 }

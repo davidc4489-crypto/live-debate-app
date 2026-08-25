@@ -1,11 +1,11 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
   Headers,
   Param,
   Post,
+  Query,
   UnauthorizedException,
 } from "@nestjs/common";
 import { DebateProposedService } from "./debate-proposed.service";
@@ -27,8 +27,11 @@ export class DebatesController {
   ) {}
 
   @Get()
-  listDebates() {
-    return this.debatesService.listDebates();
+  listDebates(@Query("limit") limit?: string, @Query("offset") offset?: string) {
+    return this.debatesService.listDebates({
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined,
+    });
   }
 
   @Get("proposed")
@@ -46,22 +49,25 @@ export class DebatesController {
     @Headers("authorization") authorization: string | undefined,
     @Body() body: CreateProposedDebateDto,
   ) {
-    const allowed = [180, 300, 600];
-    const turnDuration = allowed.includes(body.turnDuration ?? 180)
-      ? (body.turnDuration as number)
-      : 180;
     return this.debateProposedService.createProposed(
       this.extractBearerToken(authorization),
-      body.title ?? "",
-      turnDuration,
+      body.title,
+      body.turnDuration ?? 180,
       body.creatorStance,
       body.opponentMode ?? "human",
     );
   }
 
   @Get(":id/scheduling")
-  getSchedulingState(@Param("id") id: string) {
-    return this.debateSchedulingService.getSchedulingState(id);
+  getSchedulingState(
+    @Param("id") id: string,
+    @Headers("authorization") authorization?: string,
+  ) {
+    // Jeton optionnel : sans lui, la vue publique (sans identités) est renvoyée.
+    return this.debateSchedulingService.getSchedulingState(
+      id,
+      this.optionalBearerToken(authorization),
+    );
   }
 
   @Post(":id/interest")
@@ -95,7 +101,7 @@ export class DebatesController {
     return this.debateSchedulingService.proposeSchedule(
       this.extractBearerToken(authorization),
       id,
-      body.proposedAt ?? "",
+      body.proposedAt,
     );
   }
 
@@ -105,14 +111,10 @@ export class DebatesController {
     @Headers("authorization") authorization: string | undefined,
     @Body() body: RespondScheduleDto,
   ) {
-    const action = body.action ?? "accept";
-    if (!["accept", "reject", "counter"].includes(action)) {
-      throw new BadRequestException("Action invalide.");
-    }
     return this.debateSchedulingService.respondToSchedule(
       this.extractBearerToken(authorization),
       id,
-      action,
+      body.action,
       body.proposedAt,
     );
   }
@@ -131,9 +133,14 @@ export class DebatesController {
     return this.conclusionsService.submitConclusion(
       this.extractBearerToken(authorization),
       id,
-      body.content ?? "",
+      body.content,
       Boolean(body.confirmWarn),
     );
+  }
+
+  private optionalBearerToken(authorization?: string): string | undefined {
+    if (!authorization?.startsWith("Bearer ")) return undefined;
+    return authorization.slice(7).trim() || undefined;
   }
 
   private extractBearerToken(authorization?: string): string {

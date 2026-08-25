@@ -4,6 +4,7 @@ import {
   Logger,
   UnauthorizedException,
 } from "@nestjs/common";
+import { createHash } from "crypto";
 import { SupabaseService } from "../supabase/supabase.service";
 import { SignInDto } from "./dto/sign-in.dto";
 import { SignUpDto } from "./dto/sign-up.dto";
@@ -21,6 +22,17 @@ interface ProfileRow {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+
+  /**
+   * Cache court des jetons validés.
+   *
+   * `getMe()` est appelé à chaque requête REST authentifiée **et** à chaque
+   * action Socket.IO (démarrer, terminer, mettre en pause…). Sans cache, chaque
+   * clic coûtait deux allers-retours Supabase (getUser + profils).
+   */
+  private readonly sessionCache = new Map<string, { user: AuthUserDto; expiresAt: number }>();
+  private readonly sessionCacheTtlMs = Number(process.env.AUTH_CACHE_TTL_MS || 60_000);
+  private readonly sessionCacheMax = 5_000;
 
   constructor(private readonly supabaseService: SupabaseService) {}
 
@@ -44,10 +56,29 @@ export class AuthService {
       throw new BadRequestException(error.message);
     }
 
-    if (!data.user || !data.session) {
-      throw new BadRequestException(
-        "Compte créé. Vérifiez votre email pour confirmer l'inscription.",
-      );
+    if (!data.user) {
+      throw new BadRequestException("Inscription impossible, réessayez.");
+    }
+
+    // Confirmation d'email activée : compte créé mais pas encore de session.
+    // Ce n'est pas une erreur — on le signale explicitement au client.
+    if (!data.session) {
+      await this.ensureProfileIfNeeded(data.user.id, data.user.email!, {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+      });
+      return {
+        user: {
+          id: data.user.id,
+          email: data.user.email ?? dto.email.trim().toLowerCase(),
+          firstName: dto.firstName?.trim() || null,
+          lastName: dto.lastName?.trim() || null,
+          isPremium: false,
+        },
+        session: null,
+        requiresEmailConfirmation: true,
+        message: "Compte créé. Vérifiez votre email pour confirmer l'inscription.",
+      };
     }
 
     await this.ensureProfileIfNeeded(data.user.id, data.user.email!, {
@@ -78,7 +109,28 @@ export class AuthService {
     return this.toAuthResponse(profile, data.session);
   }
 
+  /**
+   * Renouvelle la session à partir du refresh token.
+   *
+   * Sans cet appel, le jeton Supabase expire au bout d'une heure et
+   * l'utilisateur est déconnecté en plein débat.
+   */
+  async refreshSession(refreshToken: string): Promise<AuthResponseDto> {
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error || !data.session || !data.user) {
+      throw new UnauthorizedException("Session expirée, reconnectez-vous.");
+    }
+
+    const profile = await this.getProfileById(data.user.id, data.session.access_token);
+    return this.toAuthResponse(profile, data.session);
+  }
+
   async signOut(accessToken: string): Promise<{ success: true }> {
+    this.invalidateSession(accessToken);
     const supabase = this.supabaseService.getClientWithToken(accessToken);
     const { error } = await supabase.auth.signOut();
 
@@ -118,6 +170,7 @@ export class AuthService {
     refreshToken?: string,
   ): Promise<{ success: true }> {
     this.assertPassword(password);
+    this.invalidateSession(accessToken);
 
     const anon = this.supabaseService.getClient();
     const { data, error: userError } = await anon.auth.getUser(accessToken);
@@ -128,7 +181,10 @@ export class AuthService {
       );
     }
 
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // Le chemin « admin » contourne toute revérification : on ne l'ouvre qu'aux
+    // jetons issus d'un lien de récupération, jamais à un jeton de session
+    // ordinaire — sinon un jeton volé suffirait à s'approprier le compte.
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY && this.isRecoveryToken(accessToken)) {
       const admin = this.supabaseService.getServiceClient();
       const { error } = await admin.auth.admin.updateUserById(data.user.id, {
         password,
@@ -137,6 +193,11 @@ export class AuthService {
       if (error) {
         throw new BadRequestException(error.message);
       }
+
+      // Le mot de passe a changé : les autres sessions doivent tomber.
+      await admin.auth.admin
+        .signOut(accessToken, "global")
+        .catch(() => undefined);
 
       return { success: true };
     }
@@ -167,14 +228,48 @@ export class AuthService {
   }
 
   async getMe(accessToken: string): Promise<AuthUserDto> {
-    const supabase = this.supabaseService.getClientWithToken(accessToken);
+    const cacheKey = this.tokenKey(accessToken);
+    const cached = this.sessionCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.user;
+    }
+
+    const supabase = this.supabaseService.getClient();
     const { data, error } = await supabase.auth.getUser(accessToken);
 
     if (error || !data.user) {
+      this.sessionCache.delete(cacheKey);
       throw new UnauthorizedException("Session invalide ou expirée");
     }
 
-    return this.getProfileById(data.user.id, accessToken);
+    const user = await this.getProfileById(data.user.id, accessToken);
+    this.cacheSession(cacheKey, user);
+    return user;
+  }
+
+  private tokenKey(accessToken: string): string {
+    return createHash("sha256").update(accessToken).digest("hex");
+  }
+
+  private cacheSession(key: string, user: AuthUserDto): void {
+    if (this.sessionCache.size >= this.sessionCacheMax) {
+      const now = Date.now();
+      for (const [entryKey, entry] of this.sessionCache) {
+        if (entry.expiresAt <= now) this.sessionCache.delete(entryKey);
+      }
+      if (this.sessionCache.size >= this.sessionCacheMax) {
+        this.sessionCache.clear();
+      }
+    }
+    this.sessionCache.set(key, {
+      user,
+      expiresAt: Date.now() + this.sessionCacheTtlMs,
+    });
+  }
+
+  /** Invalide le cache d'un jeton (déconnexion, changement de mot de passe). */
+  private invalidateSession(accessToken: string): void {
+    this.sessionCache.delete(this.tokenKey(accessToken));
   }
 
   private async getProfileById(
@@ -235,6 +330,38 @@ export class AuthService {
       throw new BadRequestException(
         `Impossible de créer le profil : ${error.message}`,
       );
+    }
+  }
+
+  /**
+   * Vrai si le JWT Supabase provient d'un flux de récupération (lien email) et
+   * non d'une connexion par mot de passe.
+   *
+   * La signature a déjà été vérifiée par `auth.getUser()` juste avant : on se
+   * contente ici de lire les revendications.
+   */
+  private isRecoveryToken(accessToken: string): boolean {
+    try {
+      const [, payload] = accessToken.split(".");
+      if (!payload) return false;
+      const claims = JSON.parse(
+        Buffer.from(payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"),
+      ) as {
+        amr?: Array<{ method?: string }>;
+        session_id?: string;
+      };
+
+      const methods = (claims.amr ?? []).map((entry) => entry.method);
+      // `recovery` / `otp` / `magiclink` = lien email ; `password` = connexion classique.
+      const recoveryMethods = ["recovery", "otp", "magiclink", "email", "invite"];
+      if (methods.length === 0) {
+        // Jeton sans AMR (anciens projets Supabase) : on refuse le chemin admin
+        // et on retombe sur setSession + updateUser, qui reste sûr.
+        return false;
+      }
+      return methods.some((method) => method && recoveryMethods.includes(method));
+    } catch {
+      return false;
     }
   }
 

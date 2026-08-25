@@ -54,9 +54,17 @@ export interface DebateRow {
   scheduled_at?: string | null;
   interested_user_id?: string | null;
   categories: { name: string } | { name: string }[] | null;
-  messages: { id: string }[] | MessageRow[] | null;
+  /** Soit les messages complets (détail), soit un agrégat `[{ count }]` (liste). */
+  messages: { count: number }[] | MessageRow[] | null;
   debate_participants: ParticipantRow[] | null;
-  debate_views?: { id: string }[] | null;
+  debate_views?: { count: number }[] | null;
+}
+
+/** Lit un agrégat PostgREST `table(count)` sans confondre avec des lignes. */
+function embeddedCount(value: { count: number }[] | unknown[] | null | undefined): number {
+  const first = value?.[0] as { count?: number } | undefined;
+  if (first && typeof first.count === "number") return first.count;
+  return value?.length ?? 0;
 }
 
 function displayName(profile: ProfileRow): string {
@@ -77,8 +85,17 @@ function unwrapOne<T>(value: T | T[] | null): T | null {
 export class DebatesService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async listDebates(): Promise<DebateListItemDto[]> {
+  /** Plafond par défaut de la liste : au-delà, l'accueil pagine. */
+  static readonly LIST_LIMIT = 60;
+
+  async listDebates(options?: { limit?: number; offset?: number }): Promise<DebateListItemDto[]> {
+    const limit = Math.min(Math.max(options?.limit ?? DebatesService.LIST_LIMIT, 1), 100);
+    const offset = Math.max(options?.offset ?? 0, 0);
     const supabase = this.supabaseService.getServiceClient();
+
+    // `messages(count)` / `debate_views(count)` : les compteurs sont calculés en
+    // base. L'ancienne version rapatriait une ligne par message et par vue de
+    // chaque débat uniquement pour en faire la longueur.
     const { data, error } = await supabase
       .from("debates")
       .select(
@@ -92,18 +109,19 @@ export class DebatesService {
         scheduled_at,
         interested_user_id,
         categories ( name ),
-        messages ( id ),
+        messages ( count ),
         debate_participants (
           role,
           position,
           user_id,
           profiles ( id, username, first_name, last_name, email )
         ),
-        debate_views ( id )
+        debate_views ( count )
       `,
       )
       .neq("status", "cancelled")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       throw new Error(`Impossible de charger les débats : ${error.message}`);
@@ -165,7 +183,7 @@ export class DebatesService {
       throw new NotFoundException("Débat introuvable");
     }
 
-    return this.toDetail(data as DebateRow);
+    return this.toDetail(data as unknown as DebateRow);
   }
 
   private extractParticipants(debate: DebateRow): [DebateParticipantDto, DebateParticipantDto] {
@@ -255,8 +273,8 @@ export class DebatesService {
       title: debate.title,
       theme: category?.name ?? "Général",
       participants: this.extractParticipants(debate),
-      messagesCount: debate.messages?.length ?? 0,
-      views: debate.debate_views?.length ?? 0,
+      messagesCount: embeddedCount(debate.messages),
+      views: embeddedCount(debate.debate_views),
       spectators: spectatorCount,
       createdAt: debate.created_at,
       status: debate.status as DebateListItemDto["status"],
