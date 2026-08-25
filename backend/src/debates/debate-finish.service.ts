@@ -129,6 +129,43 @@ export class DebateFinishService {
     }
   }
 
+  /**
+   * Écrit un message dès son acceptation, sans attendre la pause ou la fin.
+   *
+   * `persistRoomMessages` ne tournait qu'à la pause et à la clôture : entre les
+   * deux, les messages n'existaient qu'en mémoire du process. Un redémarrage
+   * backend en plein débat (déploiement, veille de l'hébergeur, crash) les
+   * perdait tous. Écrire au fil de l'eau rend `debate-restore.service` capable
+   * de reconstituer l'échange complet.
+   *
+   * Volontairement hors du chemin critique : un échec est journalisé, jamais
+   * remonté à l'auteur — `persistRoomMessages` réécrira le message (upsert par
+   * id) à la pause ou à la clôture.
+   */
+  async persistMessage(
+    debateId: string,
+    message: DebateMessage,
+    turnNumber: number,
+  ): Promise<void> {
+    if (!message.userId) return;
+
+    const supabase = this.supabaseService.getServiceClient();
+    const { error } = await supabase.from("messages").upsert(
+      {
+        id: message.id,
+        debate_id: debateId,
+        user_id: message.userId,
+        content: message.text,
+        turn_number: turnNumber,
+      },
+      { onConflict: "id" },
+    );
+
+    if (error) {
+      this.logger.warn(`Message ${message.id} non persisté : ${error.message}`);
+    }
+  }
+
   async persistRoomMessages(
     debateId: string,
     messages: DebateMessage[],

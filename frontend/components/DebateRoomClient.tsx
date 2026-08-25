@@ -4,7 +4,6 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { DebateConclusionForm } from "@/components/DebateConclusionForm";
 import { DebateConclusionsSection } from "@/components/DebateConclusionsSection";
 import { DebateNoteSection } from "@/components/DebateNoteSection";
-import { EndDebateConfirmModal } from "@/components/EndDebateConfirmModal";
 import { LeaveDebateModal } from "@/components/LeaveDebateModal";
 import { ParticipantAbsentModal } from "@/components/ParticipantAbsentModal";
 import { PauseStateBanner } from "@/components/PauseStateBanner";
@@ -43,7 +42,6 @@ interface JoinedRoomPayload {
 
 type PendingSocketAction =
   | "validateStart"
-  | "endDebate"
   | "leaveDebate"
   | "requestResume"
   | "validateResume"
@@ -64,6 +62,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   const [displayName, setDisplayName] = useState("Spectator");
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [errorIsBlock, setErrorIsBlock] = useState(false);
   const [moderationWarn, setModerationWarn] = useState<ModerationWarnPayload | null>(null);
@@ -74,8 +73,6 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     suggestion: string | null;
   } | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const [endModalOpen, setEndModalOpen] = useState(false);
-  const [endingDebate, setEndingDebate] = useState(false);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [resolveAbsentLoading, setResolveAbsentLoading] = useState(false);
@@ -83,6 +80,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   const [validatingStart, setValidatingStart] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
   const pendingTextRef = useRef<string | null>(null);
+  const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingActionRef = useRef<PendingSocketAction | null>(null);
   const displayNameRef = useRef(displayName);
 
@@ -90,9 +88,6 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     switch (pendingActionRef.current) {
       case "validateStart":
         setValidatingStart(false);
-        break;
-      case "endDebate":
-        setEndingDebate(false);
         break;
       case "leaveDebate":
         setLeaveLoading(false);
@@ -113,6 +108,21 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   useEffect(() => {
     displayNameRef.current = displayName;
   }, [displayName]);
+
+  useEffect(
+    () => () => {
+      if (sendTimeoutRef.current) clearTimeout(sendTimeoutRef.current);
+    },
+    [],
+  );
+
+  const releaseSendLock = useCallback(() => {
+    if (sendTimeoutRef.current) {
+      clearTimeout(sendTimeoutRef.current);
+      sendTimeoutRef.current = null;
+    }
+    setSending(false);
+  }, []);
 
   const isCancelled =
     room?.status === "cancelled" || dbDebate?.status === "cancelled";
@@ -150,11 +160,20 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   const isPausedByMe =
     isPaused && sessionUserId !== null && pausedByUserId === sessionUserId;
   const awaitingResumeValidation = isPaused && Boolean(resumeRequestedAt);
+  // Repli sur le pauseur tant que la migration 00015 n'est pas appliquée :
+  // avant elle, seul lui pouvait demander la reprise.
+  const resumeRequestedByUserId = room?.resumeRequestedByUserId ?? pausedByUserId;
+  const iRequestedResume =
+    awaitingResumeValidation &&
+    sessionUserId !== null &&
+    resumeRequestedByUserId === sessionUserId;
+  // Les deux participants peuvent demander la reprise ; l'autre valide.
+  const canRequestResume = isPaused && isParticipant && !awaitingResumeValidation;
   const canValidateResume =
-    isPaused &&
-    isParticipant &&
-    !isPausedByMe &&
-    awaitingResumeValidation;
+    isParticipant && awaitingResumeValidation && !iRequestedResume;
+  const resumeRequestedByDisplayName =
+    room?.participantRoster?.find((slot) => slot.userId === resumeRequestedByUserId)
+      ?.displayName ?? null;
   const waitingForOpponent =
     !isFinished &&
     !isCancelled &&
@@ -233,15 +252,18 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
         pendingTextRef.current = null;
         setDraft("");
         setModerationWarn(null);
+        releaseSendLock();
+        // L'erreur précédente restait affichée sous un débat qui repartait.
+        setError("");
+        setErrorIsBlock(false);
+        setBlockDetails(null);
       }
     };
 
     const onDebateEnded = (payload: { roomId: string; snapshot?: RoomSnapshot }) => {
       if (payload.roomId !== roomId) return;
       if (payload.snapshot) setRoom(payload.snapshot);
-      setEndModalOpen(false);
       pendingActionRef.current = null;
-      setEndingDebate(false);
       void refreshDebate();
     };
 
@@ -251,6 +273,8 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       categories?: string[];
       suggestion?: string | null;
     }) => {
+      releaseSendLock();
+      pendingTextRef.current = null;
       if (payload.code === "MODERATION_BLOCK") {
         setModerationWarn(null);
         setError(payload.message);
@@ -284,6 +308,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       setBlockDetails(null);
       setModerationWarn(payload);
       setDraft(payload.text);
+      releaseSendLock();
     };
 
     const onMessageInsight = (payload: MessageInsight) => {
@@ -368,7 +393,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       socket.off("debateInsights", onDebateInsights);
       socket.off("tick", onTick);
     };
-  }, [roomId, refreshDebate, clearPendingActionLoader]);
+  }, [roomId, refreshDebate, clearPendingActionLoader, releaseSendLock]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -400,17 +425,26 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     setRemainingSeconds(room?.remainingSeconds ?? 0);
   }, [room?.remainingSeconds]);
 
-  const isActiveSpeaker = useMemo(
-    () =>
-      debateIsLive &&
-      !waitingForOpponent &&
-      role !== "spectator" &&
-      room?.currentSpeakerName === displayName,
-    [debateIsLive, waitingForOpponent, role, room?.currentSpeakerName, displayName],
-  );
+  const isActiveSpeaker = useMemo(() => {
+    if (!debateIsLive || waitingForOpponent || role === "spectator") return false;
+    // Priorité à l'identité : deux participants au même nom affiché se
+    // croyaient tous les deux locuteurs, et voyaient leurs bulles inversées.
+    if (room?.currentSpeakerUserId && sessionUserId) {
+      return room.currentSpeakerUserId === sessionUserId;
+    }
+    return room?.currentSpeakerName === displayName;
+  }, [
+    debateIsLive,
+    waitingForOpponent,
+    role,
+    room?.currentSpeakerUserId,
+    room?.currentSpeakerName,
+    sessionUserId,
+    displayName,
+  ]);
   const canSend = useMemo(
-    () => isActiveSpeaker && remainingSeconds > 0,
-    [isActiveSpeaker, remainingSeconds],
+    () => isActiveSpeaker && remainingSeconds > 0 && !sending,
+    [isActiveSpeaker, remainingSeconds, sending],
   );
 
   const turnStatusText = useMemo(() => {
@@ -419,17 +453,17 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     }
     if (isFinished) return "Débat terminé.";
     if (isPaused) {
-      if (isPausedByMe) {
-        if (awaitingResumeValidation) {
-          return "Reprise demandée : en attente de validation par l'autre participant.";
-        }
-        return "Débat en pause. Vous pouvez demander la reprise lorsque vous êtes prêt.";
+      if (iRequestedResume) {
+        return "Reprise demandée : en attente de validation par l'autre participant.";
       }
       if (canValidateResume) {
-        const by = room?.pausedByDisplayName ?? "L'autre participant";
+        const by = resumeRequestedByDisplayName ?? "L'autre participant";
         return `${by} souhaite reprendre le débat. Validez pour relancer les échanges.`;
       }
-      const by = room?.pausedByDisplayName ?? "Un participant";
+      if (canRequestResume) {
+        return "Débat en pause. Vous pouvez demander la reprise lorsque vous êtes prêt.";
+      }
+      const by = room?.pausedByDisplayName ?? "un participant";
       return `Débat en pause (par ${by}).`;
     }
     if (absentPeer) {
@@ -450,14 +484,17 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       return "En attente de la validation du créateur pour démarrer.";
     }
     if (role === "spectator") return "Mode spectateur : vous observez le tour en direct.";
-    return isActiveSpeaker ? "Vous avez la parole." : "En attente de l'autre participant.";
+    return isActiveSpeaker
+      ? "Vous avez la parole : un seul message, puis c'est à l'autre de répondre."
+      : "En attente de la réponse de l'autre participant.";
   }, [
     isCancelled,
     isFinished,
     isPaused,
-    isPausedByMe,
-    awaitingResumeValidation,
+    iRequestedResume,
+    canRequestResume,
     canValidateResume,
+    resumeRequestedByDisplayName,
     absentPeer,
     presenceMessage,
     debateIsLive,
@@ -517,13 +554,19 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       setError(`Le message ne peut pas dépasser ${MAX_MESSAGE_LENGTH} caractères.`);
       return;
     }
-    if (warnToken) {
-      pendingTextRef.current = text;
-      getSocket().emit("sendMessage", { roomId, text, warnToken });
-      return;
-    }
+    // Sans ce verrou, deux Entrée rapprochées envoyaient deux fois : le second
+    // message repartait après le changement de tour et l'auteur récoltait une
+    // erreur (« Message déjà envoyé ») juste après un envoi réussi.
+    setSending(true);
     pendingTextRef.current = text;
-    getSocket().emit("sendMessage", { roomId, text });
+    // Si le serveur ne répond ni par le message ni par une erreur, on rend la
+    // main plutôt que de laisser le champ verrouillé.
+    if (sendTimeoutRef.current) clearTimeout(sendTimeoutRef.current);
+    sendTimeoutRef.current = setTimeout(() => {
+      setSending(false);
+      setError("Aucune réponse du serveur. Réessayez.");
+    }, 10_000);
+    getSocket().emit("sendMessage", warnToken ? { roomId, text, warnToken } : { roomId, text });
   }
 
   function confirmWarnedMessage() {
@@ -543,17 +586,6 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
     pendingActionRef.current = "validateStart";
     setValidatingStart(true);
     getSocket().emit("validateDebateStart", { roomId, accessToken });
-  }
-
-  function confirmEndDebate() {
-    const accessToken = getStoredAuth()?.session?.accessToken;
-    if (!accessToken) {
-      setError("Connectez-vous pour mettre fin au débat.");
-      return;
-    }
-    pendingActionRef.current = "endDebate";
-    setEndingDebate(true);
-    getSocket().emit("endDebate", { roomId, accessToken });
   }
 
   function emitLeaveDebate(action: "pause" | "finish") {
@@ -660,18 +692,10 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
               className="btn btn-ghost btn-sm end-debate-btn"
               onClick={() => setLeaveModalOpen(true)}
             >
-              Quitter le débat
+              Mettre en pause ou terminer
             </button>
           ) : null}
-          {isParticipant && debateIsLive ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm end-debate-btn"
-              onClick={() => setEndModalOpen(true)}
-            >
-              Terminer (les deux)
-            </button>
-          ) : null}
+
         </div>
       </section>
 
@@ -734,9 +758,11 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
       <PauseStateBanner
         isPaused={isPaused}
         isPausedByMe={isPausedByMe}
-        awaitingResumeValidation={awaitingResumeValidation}
+        canRequestResume={canRequestResume}
+        iRequestedResume={iRequestedResume}
         canValidateResume={canValidateResume}
         pausedByDisplayName={room?.pausedByDisplayName}
+        resumeRequestedByDisplayName={resumeRequestedByDisplayName}
         presenceMessage={presenceMessage}
         showAbsentModal={showAbsentModal}
         isFinished={isFinished}
@@ -760,9 +786,11 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
           messages={(room?.messages ?? []).map((m) => ({
             id: m.id,
             author: m.user,
+            authorUserId: m.userId ?? null,
             text: m.text,
           }))}
           currentUserLabel={displayName}
+          currentUserId={sessionUserId}
         />
       </section>
 
@@ -799,7 +827,13 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
               <input
                 value={draft}
                 onChange={(event) => setDraft(event.target.value.slice(0, MAX_MESSAGE_LENGTH))}
-                placeholder={role === "spectator" ? "Mode lecture seule" : "Écrivez votre argument..."}
+                placeholder={
+                  role === "spectator"
+                    ? "Mode lecture seule"
+                    : sending
+                      ? "Envoi en cours…"
+                      : "Votre argument — un seul message par tour"
+                }
                 disabled={!canSend}
                 maxLength={MAX_MESSAGE_LENGTH}
                 aria-label="Votre argument"
@@ -815,16 +849,24 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
               ) : null}
             </div>
             <button type="submit" disabled={!canSend || !draft.trim()}>
-              Envoyer
+              {sending ? "Envoi…" : "Envoyer et passer la parole"}
             </button>
           </form>
-        {!canSend ? (
+        {role === "spectator" ? (
+          <p className="muted">Les spectateurs sont en lecture seule.</p>
+        ) : canSend ? (
           <p className="muted">
-            {role === "spectator"
-              ? "Les spectateurs sont en lecture seule."
-              : "Vous pouvez écrire uniquement pendant votre tour."}
+            Votre message clôt votre tour : prenez le temps de le formuler, le
+            chronomètre est le délai maximum pour répondre.
           </p>
-        ) : null}
+        ) : sending ? (
+          <p className="muted">Envoi en cours…</p>
+        ) : (
+          <p className="muted">
+            C'est au tour de {room?.currentSpeakerName ?? "l'autre participant"}.
+            Vous pourrez répondre dès que son message sera envoyé.
+          </p>
+        )}
         </section>
       ) : isFinished && isParticipant && !user ? (
         <p className="muted">Connectez-vous pour rédiger votre conclusion.</p>
@@ -840,13 +882,6 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
           setLeaveLoading(false);
           setLeaveModalOpen(false);
         }}
-      />
-
-      <EndDebateConfirmModal
-        open={endModalOpen}
-        loading={endingDebate}
-        onConfirm={confirmEndDebate}
-        onCancel={() => setEndModalOpen(false)}
       />
 
       {absentPeer ? (

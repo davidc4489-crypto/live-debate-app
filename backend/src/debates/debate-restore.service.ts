@@ -34,6 +34,7 @@ export class DebateRestoreService {
   private async fetchDebateRow(debateId: string): Promise<DebateAuthRow | null> {
     const supabase = this.supabaseService.getServiceClient();
     const selects = [
+      "id, status, paused_by_user_id, resume_requested_at, resume_requested_by_user_id, validated_at",
       "id, status, paused_by_user_id, resume_requested_at, validated_at",
       "id, status, paused_by_user_id",
       "id, status",
@@ -113,6 +114,7 @@ export class DebateRestoreService {
   private async fetchDebateForRestore(debateId: string): Promise<DebateRestoreRow | null> {
     const supabase = this.supabaseService.getServiceClient();
     const selects = [
+      "id, title, status, created_by, max_turn_time, validated_at, opponent_joined_at, paused_by_user_id, resume_requested_at, resume_requested_by_user_id, turn_user_id",
       "id, title, status, created_by, max_turn_time, validated_at, opponent_joined_at, paused_by_user_id, resume_requested_at, turn_user_id",
       "id, title, status, created_by, max_turn_time, validated_at, opponent_joined_at, turn_user_id",
       "id, title, status, created_by, max_turn_time, validated_at, opponent_joined_at",
@@ -238,6 +240,7 @@ export class DebateRestoreService {
       opponentJoinedAt: row.opponent_joined_at ?? null,
       pausedByUserId: row.paused_by_user_id ?? null,
       resumeRequestedAt: row.resume_requested_at ?? null,
+      resumeRequestedByUserId: row.resume_requested_by_user_id ?? null,
       turnUserId: row.turn_user_id ?? null,
       participants,
       messages,

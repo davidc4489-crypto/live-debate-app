@@ -25,6 +25,7 @@ export interface DebateRow {
   paused_by_user_id: string | null;
   paused_at: string | null;
   resume_requested_at: string | null;
+  resume_requested_by_user_id: string | null;
   ended_by_user_id: string | null;
   started_at: string | null;
   ended_at: string | null;
@@ -43,7 +44,15 @@ export interface DebateScheduleProposalRow {
 
 /** Select repli auth / reprise (00008, 00009 optionnels). */
 export type DebateAuthRow = Pick<DebateRow, "id" | "status"> &
-  Partial<Pick<DebateRow, "paused_by_user_id" | "resume_requested_at" | "validated_at">>;
+  Partial<
+    Pick<
+      DebateRow,
+      | "paused_by_user_id"
+      | "resume_requested_at"
+      | "resume_requested_by_user_id"
+      | "validated_at"
+    >
+  >;
 
 /** Select repli métadonnées listing / gateway. */
 export type DebateMetaRow = Pick<
@@ -63,6 +72,7 @@ export type DebateRestoreRow = Pick<DebateRow, "id" | "title" | "status"> &
       | "opponent_joined_at"
       | "paused_by_user_id"
       | "resume_requested_at"
+      | "resume_requested_by_user_id"
       | "turn_user_id"
     >
   >;

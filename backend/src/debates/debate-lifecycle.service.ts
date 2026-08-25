@@ -5,6 +5,10 @@ import { isMissingPauseMigrationColumnError } from "./debate-db-errors";
 import { castSupabaseRow, DebateRow, DebateValidateStartRow } from "./debate-db.types";
 
 const WAITING_DURATION_MS = 60 * 60 * 1000;
+/** Au-delà, un débat en pause jamais repris est considéré comme abandonné. */
+const PAUSED_ABANDON_MS = Number(
+  process.env.DEBATE_PAUSED_ABANDON_MS || 7 * 24 * 60 * 60 * 1000,
+);
 
 @Injectable()
 export class DebateLifecycleService {
@@ -128,6 +132,39 @@ export class DebateLifecycleService {
     return (data ?? []).map((row) => castSupabaseRow<{ id: string }>(row).id);
   }
 
+  /**
+   * Clôt les débats laissés en pause et jamais repris.
+   *
+   * `cancelExpiredDebates` ne visait que les débats `pending` : un débat mis en
+   * pause puis abandonné restait `paused` indéfiniment en base, et sa room
+   * restait en mémoire du process. On les termine (et non « annule ») car ils
+   * portent de vrais échanges : le replay et les conclusions restent
+   * accessibles aux deux participants.
+   */
+  async finishAbandonedPausedDebates(): Promise<string[]> {
+    const supabase = this.supabaseService.getServiceClient();
+    const now = new Date();
+    const threshold = new Date(now.getTime() - PAUSED_ABANDON_MS).toISOString();
+
+    const { data, error } = await supabase
+      .from("debates")
+      .update({ status: "finished", ended_at: now.toISOString(), turn_user_id: null })
+      .eq("status", "paused")
+      .lt("paused_at", threshold)
+      .select("id");
+
+    if (error) {
+      // `paused_at` absent (migration 00008) : rien à faire, pas d'horodatage
+      // sur lequel s'appuyer pour décider de l'abandon.
+      if (!isMissingPauseMigrationColumnError(error)) {
+        this.logger.warn(`Clôture débats en pause abandonnés : ${error.message}`);
+      }
+      return [];
+    }
+
+    return (data ?? []).map((row) => castSupabaseRow<{ id: string }>(row).id);
+  }
+
   async cancelPendingDebate(debateId: string): Promise<void> {
     const supabase = this.supabaseService.getServiceClient();
     await supabase
@@ -138,11 +175,19 @@ export class DebateLifecycleService {
   }
 
   /** Persistance DB uniquement — appeler assertCanRequestResume avant. */
-  async requestResumeDebate(debateId: string, _userId: string): Promise<void> {
+  async requestResumeDebate(debateId: string, userId: string): Promise<void> {
     const supabase = this.supabaseService.getServiceClient();
     const now = new Date().toISOString();
-    type ResumeRequestUpdate = Partial<Pick<DebateRow, "resume_requested_at">>;
-    const attempts: ResumeRequestUpdate[] = [{ resume_requested_at: now }, {}];
+    type ResumeRequestUpdate = Partial<
+      Pick<DebateRow, "resume_requested_at" | "resume_requested_by_user_id">
+    >;
+    // Mémoriser le demandeur (00015) : c'est lui qui détermine qui valide.
+    // Sans la colonne, on retombe sur l'ancien comportement (pauseur = demandeur).
+    const attempts: ResumeRequestUpdate[] = [
+      { resume_requested_at: now, resume_requested_by_user_id: userId },
+      { resume_requested_at: now },
+      {},
+    ];
 
     for (const payload of attempts) {
       const { error } = await supabase.from("debates").update(payload).eq("id", debateId);
@@ -163,10 +208,21 @@ export class DebateLifecycleService {
     type ResumeValidateUpdate = Partial<
       Pick<
         DebateRow,
-        "status" | "paused_by_user_id" | "paused_at" | "resume_requested_at"
+        | "status"
+        | "paused_by_user_id"
+        | "paused_at"
+        | "resume_requested_at"
+        | "resume_requested_by_user_id"
       >
     >;
     const attempts: ResumeValidateUpdate[] = [
+      {
+        status: "active",
+        paused_by_user_id: null,
+        paused_at: null,
+        resume_requested_at: null,
+        resume_requested_by_user_id: null,
+      },
       {
         status: "active",
         paused_by_user_id: null,

@@ -24,6 +24,7 @@ export interface RestoreRoomPayload {
   opponentJoinedAt: string | null;
   pausedByUserId: string | null;
   resumeRequestedAt: string | null;
+  resumeRequestedByUserId?: string | null;
   turnUserId: string | null;
   participants: Array<{
     userId: string;
@@ -93,6 +94,7 @@ export class RoomsService implements OnModuleDestroy {
       awaitingValidation: false,
       debateValidated: false,
       participantSlots: [null, null],
+      lastActivityAt: Date.now(),
     };
     return this.rooms[id];
   }
@@ -170,9 +172,11 @@ export class RoomsService implements OnModuleDestroy {
       pausedByUserId: payload.pausedByUserId,
       pausedByDisplayName: pausedBy?.displayName ?? null,
       resumeRequestedAt: payload.resumeRequestedAt,
+      resumeRequestedByUserId: payload.resumeRequestedByUserId ?? null,
       turnUserId: payload.turnUserId,
     };
 
+    room.lastActivityAt = Date.now();
     this.rooms[payload.id] = room;
     return room;
   }
@@ -354,6 +358,7 @@ export class RoomsService implements OnModuleDestroy {
     this.sessions.set(socketId, session);
     this.assignParticipantSlot(room, session);
     this.rebuildParticipantsFromSlots(room);
+    this.touch(room);
 
     if (session.userId && this.cancelDisconnectGrace(session.userId, roomId)) {
       room.absentParticipantUserId = null;
@@ -460,9 +465,18 @@ export class RoomsService implements OnModuleDestroy {
   requestResume(roomId: string, userId: string): RoomState | null {
     const room = this.rooms[roomId];
     if (!room || room.status !== "paused") return null;
-    if (room.pausedByUserId !== userId) return null;
+    // Les deux participants peuvent demander la reprise (l'autre valide) :
+    // réserver la demande au pauseur bloquait l'adversaire s'il ne revenait pas.
+    if (!this.isRegisteredParticipant(room, userId)) return null;
+    if (room.resumeRequestedAt) return null;
     room.resumeRequestedAt = new Date().toISOString();
+    room.resumeRequestedByUserId = userId;
     return room;
+  }
+
+  /** Occupe un des deux slots du débat (indépendamment de sa connexion). */
+  private isRegisteredParticipant(room: RoomState, userId: string): boolean {
+    return Boolean(room.participantSlots?.some((slot) => slot?.userId === userId));
   }
 
   validateResume(roomId: string, turnUserId?: string | null): RoomState | null {
@@ -474,6 +488,7 @@ export class RoomsService implements OnModuleDestroy {
     room.pausedByUserId = null;
     room.pausedByDisplayName = null;
     room.resumeRequestedAt = null;
+    room.resumeRequestedByUserId = null;
     room.absentParticipantUserId = null;
     room.absentParticipantDisplayName = null;
 
@@ -537,13 +552,13 @@ export class RoomsService implements OnModuleDestroy {
 
     const cleaned = text.trim();
     if (!cleaned) {
-      return { message: null, error: "Le message ne peut pas etre vide." };
+      return { message: null, error: "Le message ne peut pas être vide." };
     }
 
     if (cleaned.length > MAX_MESSAGE_LENGTH) {
       return {
         message: null,
-        error: `Le message ne peut pas depasser ${MAX_MESSAGE_LENGTH} caracteres.`,
+        error: `Le message ne peut pas dépasser ${MAX_MESSAGE_LENGTH} caractères.`,
       };
     }
 
@@ -584,7 +599,7 @@ export class RoomsService implements OnModuleDestroy {
     }
 
     if (!room.turnEndsAt || Date.now() >= room.turnEndsAt) {
-      return { message: null, error: "Le tour est termine, veuillez attendre le prochain." };
+      return { message: null, error: "Votre tour est terminé, attendez le prochain." };
     }
 
     const message: DebateMessage = {
@@ -595,6 +610,7 @@ export class RoomsService implements OnModuleDestroy {
     };
 
     room.messages.push(message);
+    this.touch(room);
     return { message };
   }
 
@@ -610,6 +626,12 @@ export class RoomsService implements OnModuleDestroy {
 
     room.participants = room.participants.filter((id) => id !== socketId);
     room.spectators = room.spectators.filter((id) => id !== socketId);
+    // Sans cette libération, le slot gardait un socketId mort : la room
+    // continuait de compter un participant connecté (`countConnectedParticipants`)
+    // et le slot ne pouvait plus être repris à la reconnexion.
+    if (session.userId) {
+      this.clearSlotSocket(session.roomId, session.userId);
+    }
     this.sessions.delete(socketId);
 
     if (room.currentSpeaker === socketId) {
@@ -911,6 +933,47 @@ export class RoomsService implements OnModuleDestroy {
     return Object.values(this.rooms);
   }
 
+  /**
+   * Retire de la mémoire les rooms terminées ou abandonnées sans socket.
+   *
+   * `leaveRoom` conservait volontairement les rooms validées `active`/`paused`
+   * pour permettre une reprise sans aller-retour DB — mais rien ne les
+   * supprimait ensuite. Un débat mis en pause et jamais repris restait dans
+   * `this.rooms` pour la durée de vie du process, et repartait dans chaque
+   * `roomsUpdated` diffusé à tous les clients connectés.
+   *
+   * Les rooms sans socket sont reconstruites à la demande par
+   * `ensureRoomFromDb`, la purge est donc sans perte.
+   */
+  pruneStaleRooms(maxIdleMs: number): string[] {
+    const removed: string[] = [];
+    const now = Date.now();
+
+    for (const room of Object.values(this.rooms)) {
+      // Les sessions vivantes font foi : les tableaux de la room et les slots
+      // sont du cache, ils peuvent garder un socketId périmé.
+      const hasSocket = this.getSessionsInRoom(room.id).length > 0;
+      if (hasSocket) continue;
+      if (this.hasDisconnectGraceForRoom(room.id)) continue;
+      if (this.bothAbsentTimers.has(room.id)) continue;
+
+      const terminal = room.status === "finished" || room.status === "cancelled";
+      const idleSince = room.lastActivityAt ?? 0;
+      if (!terminal && now - idleSince < maxIdleMs) continue;
+
+      this.clearBothAbsentAutoPause(room.id);
+      delete this.rooms[room.id];
+      removed.push(room.id);
+    }
+
+    return removed;
+  }
+
+  /** Horodate la dernière activité, pour la purge des rooms inertes. */
+  private touch(room: RoomState): void {
+    room.lastActivityAt = Date.now();
+  }
+
   getParticipantRoster(roomId: string): Array<{
     userId: string | null;
     displayName: string;
@@ -975,6 +1038,9 @@ export class RoomsService implements OnModuleDestroy {
       turnDuration: room.turnDuration,
       currentSpeaker: room.currentSpeaker,
       currentSpeakerName: currentSpeakerSession?.displayName || null,
+      // Le client comparait le nom affiché pour savoir s'il avait la parole :
+      // deux participants homonymes se croyaient tous les deux locuteurs.
+      currentSpeakerUserId: currentSpeakerSession?.userId ?? null,
       turnEndsAt: room.turnEndsAt,
       remainingSeconds,
       awaitingValidation: room.awaitingValidation ?? false,
@@ -983,6 +1049,7 @@ export class RoomsService implements OnModuleDestroy {
       pausedByUserId: room.pausedByUserId ?? null,
       pausedByDisplayName: room.pausedByDisplayName ?? null,
       resumeRequestedAt: room.resumeRequestedAt ?? null,
+      resumeRequestedByUserId: room.resumeRequestedByUserId ?? null,
       endedByUserId: room.endedByUserId ?? null,
       absentParticipantUserId: room.absentParticipantUserId ?? null,
       absentParticipantDisplayName: room.absentParticipantDisplayName ?? null,
@@ -1023,6 +1090,7 @@ export class RoomsService implements OnModuleDestroy {
     remainingSeconds: number;
     currentSpeaker: string | null;
     currentSpeakerName: string | null;
+    currentSpeakerUserId: string | null;
     turnEndsAt: number | null;
   } | null {
     const room = this.rooms[roomId];
@@ -1037,6 +1105,7 @@ export class RoomsService implements OnModuleDestroy {
       remainingSeconds: Math.max(0, Math.ceil((room.turnEndsAt - Date.now()) / 1000)),
       currentSpeaker: room.currentSpeaker,
       currentSpeakerName: session?.displayName || null,
+      currentSpeakerUserId: session?.userId ?? null,
       turnEndsAt: room.turnEndsAt,
     };
   }

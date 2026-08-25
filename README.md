@@ -15,6 +15,21 @@ MVP de débat en temps réel pour petits groupes (environ 10 utilisateurs), avec
 - suppression manuelle de messages (mode modérateur côté UI)
 - liste des rooms actives avec compteurs live (participants/spectateurs)
 
+### Déroulement d'un débat
+
+Le débat alterne **un message chacun**, à tour de rôle :
+
+1. Le créateur ouvre le débat ; il reste ouvert une heure en attente d'un adversaire,
+   puis se ferme automatiquement.
+2. Quand un second participant rejoint, le créateur valide le démarrage.
+3. Chacun parle à son tour. **Envoyer son message passe la parole à l'autre** —
+   la durée de tour (3, 5 ou 10 min) est le *délai maximum pour répondre*, pas un
+   temps de parole à consommer. Un tour écoulé sans message passe la main.
+4. Un participant peut mettre le débat en pause ou le terminer. En pause,
+   **l'un ou l'autre** peut demander la reprise, validée par celui qui ne l'a pas
+   demandée. Un débat en pause plus de 7 jours est clôturé automatiquement.
+5. Une fois terminé, chaque participant rédige sa conclusion.
+
 ### Modération & IA (Hugging Face)
 
 - **modération multilingue** — Detoxify `multilingual` (XLM-RoBERTa) : le
@@ -81,6 +96,13 @@ Dans le SQL Editor Supabase (ou via CLI), exécuter les migrations dans `supabas
 3. `00004_more_interests.sql` (optionnel — ~30 intérêts supplémentaires)
 4. `00005_follows_notifications.sql` (**abonnements + notifications**)
 5. `00014_moderation_v2.sql` (modération détaillée : catégories, gravité, langue)
+6. `00015_resume_requester_and_title_guard.sql` (**reprise demandable par les deux
+   participants** + longueur maximale des titres)
+
+Les migrations `00007` à `00013` (cycle de vie, pause/reprise, débats proposés)
+sont également nécessaires au déroulement complet d'un débat. Le backend
+fonctionne en mode dégradé si `00015` manque : la reprise retombe alors sur
+l'ancienne règle (seul le participant ayant mis en pause peut la demander).
 
 **Profils / intérêts** — si vous voyez `Could not find the table 'public.interests'` :
 
@@ -163,8 +185,8 @@ Frontend disponible sur `http://localhost:3000`.
 
 Événements push émis par le serveur :
 
-- `roomsUpdated` → liste globale des rooms
-- `roomUpdated` → état complet d'une room
+- `roomsUpdated` → liste globale des rooms (sans les messages)
+- `roomUpdated` → état complet d'une room, y compris les messages et le tour courant
 - `joinedRoom` → rôle attribué à l'utilisateur
 - `errorMessage` → erreurs métier (dont `MODERATION_BLOCK`, `RATE_LIMIT`, `DUPLICATE`)
 - `moderationWarn` → message signalé : motifs, gravité, conseil de reformulation
@@ -207,8 +229,10 @@ Puis déployer.
 - **Ne jamais committer de clés** dans `*.env.example` : ces fichiers sont
   versionnés. La `SUPABASE_SERVICE_ROLE_KEY` contourne toutes les RLS ; si elle
   fuite, il faut la révoquer dans Supabase → Settings → API.
-- **CORS** restreint aux origines de `FRONTEND_URL`. Sans cette variable, le
-  backend accepte toutes les origines et le log l'annonce au démarrage.
+- **CORS** restreint aux origines de `FRONTEND_URL`, côté API HTTP **et** côté
+  gateway Socket.IO (qui transporte les jetons d'accès et tout le trafic de
+  débat). Sans cette variable, le backend accepte toutes les origines et le log
+  l'annonce au démarrage — à ne pas laisser en production.
 - **Validation** globale des entrées (`class-validator`) : tout champ non
   déclaré dans un DTO est rejeté, chaque champ est typé et borné.
 - **Anti brute-force** : `/auth/signin` (10 / 5 min), `/auth/signup` (5 / h),

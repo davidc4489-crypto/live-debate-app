@@ -3,6 +3,8 @@
 export interface ThreadMessage {
   id: string;
   author: string;
+  /** Identité de l'auteur, quand elle est connue (homonymes). */
+  authorUserId?: string | null;
   text: string;
   turnIndex?: number;
 }

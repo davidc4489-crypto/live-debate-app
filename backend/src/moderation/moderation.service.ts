@@ -12,6 +12,8 @@ interface WarnTokenEntry {
   socketId: string;
   text: string;
   expiresAt: number;
+  /** Verdict qui a déclenché l'avertissement, réutilisé à la confirmation. */
+  result: ModerationResult;
 }
 
 @Injectable()
@@ -192,29 +194,41 @@ export class ModerationService {
     }
   }
 
-  issueWarnToken(socketId: string, text: string): string {
+  issueWarnToken(socketId: string, text: string, result: ModerationResult): string {
     const token = randomBytes(16).toString("hex");
     this.warnTokens.set(token, {
       socketId,
       text: text.trim(),
       expiresAt: Date.now() + 120_000,
+      result,
     });
     this.pruneWarnTokens();
     return token;
   }
 
-  consumeWarnToken(token: string, socketId: string, text: string): boolean {
+  /**
+   * Valide un jeton d'avertissement et rend le verdict déjà calculé.
+   *
+   * Le verdict est conservé avec le jeton : confirmer un message averti ne doit
+   * pas repayer un appel modèle sur le chemin d'envoi, et le cache de résultats
+   * (60 s) expire avant le jeton (120 s).
+   */
+  consumeWarnToken(
+    token: string,
+    socketId: string,
+    text: string,
+  ): ModerationResult | null {
     const entry = this.warnTokens.get(token);
-    if (!entry) return false;
+    if (!entry) return null;
     if (entry.expiresAt < Date.now()) {
       this.warnTokens.delete(token);
-      return false;
+      return null;
     }
     if (entry.socketId !== socketId || entry.text !== text.trim()) {
-      return false;
+      return null;
     }
     this.warnTokens.delete(token);
-    return true;
+    return entry.result;
   }
 
   getBlockMessage(result?: ModerationResult): string {

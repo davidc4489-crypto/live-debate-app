@@ -37,6 +37,11 @@ import { DebateRestoreService } from "./debates/debate-restore.service";
 import { DebateSchedulingService } from "./debates/debate-scheduling.service";
 import { NotificationsPushService } from "./notifications/notifications-push.service";
 import { RoomsService } from "./rooms.service";
+import { corsOrigin } from "./common/allowed-origins";
+import {
+  DEBATE_TITLE_MAX,
+  DEBATE_TITLE_MIN,
+} from "./debates/dto/create-proposed-debate.dto";
 import {
   httpExceptionMessage,
   runEmittingHttpErrors,
@@ -44,8 +49,16 @@ import {
 } from "./debate-gateway-session.helper";
 import type { GatewaySessionDeps } from "./debate-gateway-session.helper";
 
+/** Fréquence de la purge (base + mémoire) des débats abandonnés. */
+const ROOM_PRUNE_INTERVAL_MS = 10 * 60 * 1000;
+/** Une room sans aucun socket au-delà de ce délai quitte la mémoire. */
+const ROOM_IDLE_TTL_MS = 60 * 60 * 1000;
+
 @WebSocketGateway({
-  cors: { origin: "*" },
+  // Même liste blanche que le CORS HTTP (`FRONTEND_URL`) : la gateway porte les
+  // jetons d'accès et tout le trafic de débat, elle ne peut pas rester ouverte
+  // à toutes les origines alors que l'API l'a fermée.
+  cors: { origin: corsOrigin() },
 })
 export class DebateGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
@@ -59,8 +72,10 @@ export class DebateGateway
   private cancelInterval: NodeJS.Timeout;
   private scheduledInterval: NodeJS.Timeout;
   private moderationPruneInterval: NodeJS.Timeout;
+  private roomPruneInterval: NodeJS.Timeout;
   private cancelExpiredDebatesRunning = false;
   private activateScheduledRunning = false;
+  private pruneAbandonedRunning = false;
 
   constructor(
     private readonly roomsService: RoomsService,
@@ -83,7 +98,6 @@ export class DebateGateway
       changedRoomIds.forEach((roomId) => {
         const snapshot = this.roomsService.getRoomSnapshot(roomId);
         if (!snapshot) return;
-        this.server.to(roomId).emit("turnChanged", snapshot);
         this.server.to(roomId).emit("roomUpdated", snapshot);
       });
 
@@ -106,6 +120,43 @@ export class DebateGateway
     this.moderationPruneInterval = setInterval(() => {
       this.spamGuard.prune();
     }, 60_000);
+
+    // Débats en pause abandonnés (base) + rooms inertes (mémoire) : sans ces
+    // deux purges, les uns restaient `paused` indéfiniment et les autres
+    // s'accumulaient dans chaque `roomsUpdated` diffusé à tous les clients.
+    this.roomPruneInterval = setInterval(() => {
+      void this.runPruneAbandoned();
+    }, ROOM_PRUNE_INTERVAL_MS);
+  }
+
+  private async runPruneAbandoned(): Promise<void> {
+    if (this.pruneAbandonedRunning) return;
+
+    this.pruneAbandonedRunning = true;
+    try {
+      const finishedIds = await this.debateLifecycleService.finishAbandonedPausedDebates();
+      for (const roomId of finishedIds) {
+        const endedAt = new Date().toISOString();
+        this.roomsService.finishRoom(roomId, endedAt);
+        const snapshot = this.roomsService.getRoomSnapshot(roomId);
+        this.server.to(roomId).emit("debateEnded", { roomId, endedAt, snapshot });
+      }
+
+      const removed = this.roomsService.pruneStaleRooms(ROOM_IDLE_TTL_MS);
+
+      if (finishedIds.length > 0 || removed.length > 0) {
+        this.logger.log(
+          `Purge : ${finishedIds.length} débat(s) en pause clôturé(s), ` +
+            `${removed.length} room(s) retirée(s) de la mémoire.`,
+        );
+        this.broadcastRoomsUpdated();
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Échec purge des débats abandonnés : ${message}`);
+    } finally {
+      this.pruneAbandonedRunning = false;
+    }
   }
 
   afterInit(server: Server): void {
@@ -184,6 +235,7 @@ export class DebateGateway
     clearInterval(this.cancelInterval);
     clearInterval(this.scheduledInterval);
     clearInterval(this.moderationPruneInterval);
+    clearInterval(this.roomPruneInterval);
   }
 
   handleConnection(client: Socket) {
@@ -373,7 +425,41 @@ export class DebateGateway
 
     const title = payload?.title?.trim();
     if (!title) {
-      client.emit("errorMessage", { message: "Le titre de la room est requis." });
+      client.emit("errorMessage", { message: "Le titre du débat est requis." });
+      return;
+    }
+
+    if (title.length < DEBATE_TITLE_MIN) {
+      client.emit("errorMessage", {
+        message: `Le titre doit contenir au moins ${DEBATE_TITLE_MIN} caractères.`,
+      });
+      return;
+    }
+
+    // Le titre était le seul texte public jamais borné : diffusé à tous les
+    // clients connectés, à l'accueil, à l'exploration et aux abonnés du
+    // créateur, il pouvait faire n'importe quelle longueur.
+    if (title.length > DEBATE_TITLE_MAX) {
+      client.emit("errorMessage", {
+        message: `Le titre ne peut pas dépasser ${DEBATE_TITLE_MAX} caractères.`,
+      });
+      return;
+    }
+
+    // ...et le seul à échapper à la modération, alors que les messages et les
+    // conclusions y passent. Un titre est permanent et public : pas de
+    // confirmation possible comme pour un message, on refuse dès l'alerte.
+    const titleModeration = await this.moderationService.moderateText(title);
+    if (titleModeration.action !== "allow") {
+      client.emit("errorMessage", {
+        message:
+          titleModeration.action === "block"
+            ? this.moderationService.getBlockMessage(titleModeration)
+            : "Ce titre risque d'être mal reçu : reformulez-le avant de lancer le débat.",
+        code: "MODERATION_BLOCK",
+        categories: titleModeration.categories ?? [],
+        suggestion: titleModeration.suggestion ?? null,
+      });
       return;
     }
 
@@ -1004,6 +1090,9 @@ export class DebateGateway
               room,
               sessions,
             );
+            // Comme les autres chemins de clôture : sans cet appel,
+            // `ended_by_user_id` restait vide en base pour ce bouton.
+            await this.debatePresenceService.finishDebateByUser(roomId, userId, endedAt);
             this.roomsService.finishRoom(roomId, endedAt, userId);
             const snapshot = this.roomsService.getRoomSnapshot(roomId);
 
@@ -1045,7 +1134,7 @@ export class DebateGateway
 
     const text = payload?.text?.trim() ?? "";
     if (!text) {
-      client.emit("errorMessage", { message: "Le message ne peut pas etre vide." });
+      client.emit("errorMessage", { message: "Le message ne peut pas être vide." });
       return;
     }
 
@@ -1060,16 +1149,16 @@ export class DebateGateway
       return;
     }
 
-    const warnAccepted = Boolean(
-      payload.warnToken &&
-        this.moderationService.consumeWarnToken(payload.warnToken, client.id, text),
-    );
+    // Message déjà averti puis confirmé : le verdict est rendu avec le jeton,
+    // on ne repasse ni par le modèle ni par les branches block/warn.
+    const warnedResult = payload.warnToken
+      ? this.moderationService.consumeWarnToken(payload.warnToken, client.id, text)
+      : null;
 
-    let moderation = warnAccepted
-      ? null
-      : await this.moderationService.moderateText(text);
+    const moderation =
+      warnedResult ?? (await this.moderationService.moderateText(text));
 
-    if (moderation?.action === "block") {
+    if (!warnedResult && moderation.action === "block") {
       client.emit("errorMessage", {
         message: this.moderationService.getBlockMessage(moderation),
         code: "MODERATION_BLOCK",
@@ -1079,8 +1168,12 @@ export class DebateGateway
       return;
     }
 
-    if (moderation?.action === "warn") {
-      const warnToken = this.moderationService.issueWarnToken(client.id, text);
+    if (!warnedResult && moderation.action === "warn") {
+      const warnToken = this.moderationService.issueWarnToken(
+        client.id,
+        text,
+        moderation,
+      );
       client.emit("moderationWarn", {
         roomId: session.roomId,
         text,
@@ -1102,14 +1195,21 @@ export class DebateGateway
     const result = this.roomsService.sendMessage(client.id, text);
     if (!result.message) {
       client.emit("errorMessage", {
-        message: result.error || "Message refuse.",
+        message: result.error || "Message refusé.",
       });
       return;
     }
 
-    if (!moderation) {
-      moderation = await this.moderationService.moderateText(text);
-    }
+    // Écriture en base immédiate : sans elle, un redémarrage backend en plein
+    // débat perdait tous les messages non encore sauvegardés (la persistance
+    // n'avait lieu qu'à la pause ou à la clôture).
+    const liveRoom = this.roomsService.getRoom(session.roomId);
+    const turnNumber = liveRoom
+      ? liveRoom.messages.filter((m) => m.userId).length
+      : 1;
+    void this.debateFinishService
+      .persistMessage(session.roomId, result.message, turnNumber)
+      .catch(() => undefined);
 
     // Analyse qualitative (hors chemin critique : n'empêche jamais l'envoi).
     void this.debateInsights
@@ -1118,14 +1218,14 @@ export class DebateGateway
         if (!insight) return;
         void this.messageFlagsService.saveFlag(
           result.message!.id,
-          moderation!,
+          moderation,
           insight.qualityScore,
         );
         client.emit("messageInsight", insight.forAuthor);
         this.server.to(session.roomId).emit("debateInsights", insight.forRoom);
       })
       .catch(() => {
-        void this.messageFlagsService.saveFlag(result.message!.id, moderation!);
+        void this.messageFlagsService.saveFlag(result.message!.id, moderation);
       });
 
     const snapshot = this.roomsService.getRoomSnapshot(session.roomId);
@@ -1135,7 +1235,6 @@ export class DebateGateway
       : snapshot;
 
     if (switchedSnapshot) {
-      this.server.to(session.roomId).emit("turnChanged", switchedSnapshot);
       this.server.to(session.roomId).emit("roomUpdated", switchedSnapshot);
     }
     this.server.emit("roomsUpdated", this.roomsService.getRoomsSnapshot());

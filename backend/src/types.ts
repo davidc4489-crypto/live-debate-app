@@ -41,6 +41,10 @@ export interface RoomState {
   absentParticipantDisplayName?: string | null;
   participantSlots?: [ParticipantSlot | null, ParticipantSlot | null];
   resumeRequestedAt?: string | null;
+  /** Auteur de la demande de reprise ; la validation revient à l'autre. */
+  resumeRequestedByUserId?: string | null;
+  /** Dernière activité (ms) — sert à purger les rooms inertes de la mémoire. */
+  lastActivityAt?: number;
   /** userId du participant qui avait la parole à la pause */
   turnUserId?: string | null;
 }

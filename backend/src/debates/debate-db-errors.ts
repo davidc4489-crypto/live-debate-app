@@ -1,6 +1,6 @@
-/** Colonnes ajoutées par les migrations pause / reprise (00008, 00009). */
+/** Colonnes ajoutées par les migrations pause / reprise (00008, 00009, 00015). */
 const PAUSE_MIGRATION_COLUMN =
-  /paused_at|paused_by_user_id|resume_requested_at|ended_by_user_id/;
+  /paused_at|paused_by_user_id|resume_requested_at|resume_requested_by_user_id|ended_by_user_id/;
 
 /** PostgREST : colonne absente du cache schéma (ex. migration non appliquée). */
 const PGRST_MISSING_COLUMN_MESSAGE =

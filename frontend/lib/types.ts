@@ -11,6 +11,8 @@ export interface DebateMessage {
   id: string;
   user: string;
   text: string;
+  /** Auteur — absent pour les messages d'invités non authentifiés. */
+  userId?: string | null;
 }
 
 export type RoomStatus = "waiting" | "active" | "finished" | "cancelled" | "paused";
@@ -33,6 +35,8 @@ export interface RoomSnapshot {
   turnDuration: number;
   currentSpeaker: string | null;
   currentSpeakerName: string | null;
+  /** Identité du locuteur : comparer les noms affichés confond les homonymes. */
+  currentSpeakerUserId?: string | null;
   turnEndsAt: number | null;
   remainingSeconds: number;
   awaitingValidation?: boolean;
@@ -41,6 +45,7 @@ export interface RoomSnapshot {
   pausedByUserId?: string | null;
   pausedByDisplayName?: string | null;
   resumeRequestedAt?: string | null;
+  resumeRequestedByUserId?: string | null;
   absentParticipantUserId?: string | null;
   absentParticipantDisplayName?: string | null;
 }

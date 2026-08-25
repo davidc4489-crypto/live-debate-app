@@ -12,7 +12,7 @@
     "migrate:profiles": "node scripts/apply-profile-migration.mjs",
     "test:moderation": "node scripts/test-moderation.mjs",
     "test:moderation:live": "node scripts/test-moderation.mjs --live",
-    "test:rooms": "node scripts/test-rooms.mjs",
+    "test:rooms": "npm run build && node scripts/test-rooms.mjs",
     "test": "npm run test:moderation && npm run test:rooms"
   },
   "dependencies": {

@@ -63,8 +63,14 @@ console.log("\n[2] Payload du tick (1 s)");
   const tick = rooms.getTickState(roomId);
   assert(tick !== null, "un tick est produit pour une room en cours");
   assert(
-    tick && Object.keys(tick).sort().join(",") === "currentSpeaker,currentSpeakerName,remainingSeconds,turnEndsAt",
-    "le tick ne transporte que les 4 champs utiles",
+    tick &&
+      Object.keys(tick).sort().join(",") ===
+        "currentSpeaker,currentSpeakerName,currentSpeakerUserId,remainingSeconds,turnEndsAt",
+    "le tick ne transporte que les champs du tour",
+  );
+  assert(
+    tick && tick.currentSpeakerUserId === "user-a",
+    "le tick identifie le locuteur (et pas seulement son nom)",
   );
 
   rooms.finishRoom(roomId, new Date().toISOString(), "user-a");
@@ -96,6 +102,82 @@ console.log("\n[3] Garde-fous d'envoi de message");
 
   const unknown = rooms.sendMessage("socket-inconnu", "coucou");
   assert(unknown.message === null, "socket sans session refusé");
+}
+
+
+console.log("\n[4] Reprise après pause : les deux participants peuvent la demander");
+{
+  const { rooms, roomId } = buildLiveRoom();
+  rooms.pauseRoom(roomId, "user-a", "Alice", "socket-a", "user-a");
+
+  // Ancien comportement : seul le pauseur pouvait demander la reprise, ce qui
+  // enfermait l'adversaire si le pauseur ne revenait jamais.
+  const byOpponent = rooms.requestResume(roomId, "user-b");
+  assert(byOpponent !== null, "l'adversaire (non pauseur) peut demander la reprise");
+  assert(
+    rooms.getRoomSnapshot(roomId).resumeRequestedByUserId === "user-b",
+    "le demandeur est exposé dans le snapshot",
+  );
+
+  assert(
+    rooms.requestResume(roomId, "user-a") === null,
+    "pas de seconde demande tant que la première est en attente",
+  );
+
+  const resumed = rooms.validateResume(roomId, "user-a");
+  assert(resumed !== null && resumed.status === "active", "la validation relance le débat");
+  assert(
+    rooms.getRoomSnapshot(roomId).resumeRequestedByUserId === null,
+    "le demandeur est nettoyé après la reprise",
+  );
+}
+
+console.log("\n[5] Demande de reprise : réservée aux participants");
+{
+  const { rooms, roomId } = buildLiveRoom();
+  rooms.joinRoom(roomId, "socket-c", { userId: "user-c", displayName: "Chloé" });
+  rooms.pauseRoom(roomId, "user-a", "Alice", "socket-a", "user-a");
+
+  assert(
+    rooms.requestResume(roomId, "user-c") === null,
+    "un spectateur ne peut pas demander la reprise",
+  );
+}
+
+console.log("\n[6] Purge des rooms inertes");
+{
+  const { rooms, roomId } = buildLiveRoom();
+
+  assert(
+    rooms.pruneStaleRooms(0).length === 0,
+    "une room avec des sockets connectés n'est jamais purgée",
+  );
+
+  rooms.leaveRoom("socket-a");
+  rooms.leaveRoom("socket-b");
+  assert(rooms.roomExists(roomId), "une room validée survit au départ des sockets");
+
+  assert(
+    rooms.pruneStaleRooms(60_000).length === 0,
+    "une room récemment active est conservée",
+  );
+
+  const removed = rooms.pruneStaleRooms(0);
+  assert(removed.includes(roomId), "une room sans socket et inerte quitte la mémoire");
+  assert(!rooms.roomExists(roomId), "la room est bien retirée");
+  assert(rooms.getRoomsSnapshot().length === 0, "elle ne part plus dans roomsUpdated");
+}
+
+console.log("\n[7] Identité de l'auteur portée par le message");
+{
+  const { rooms, roomId } = buildLiveRoom();
+  const speaker = rooms.getRoomSnapshot(roomId).currentSpeaker;
+  const sent = rooms.sendMessage(speaker, "Le nucléaire est bas carbone.");
+  assert(sent.message !== null, "message accepté");
+  assert(
+    sent.message.userId === rooms.getSession(speaker).userId,
+    "le message porte l'identité de son auteur (attribution des bulles)",
+  );
 }
 
 console.log(`\n${passed} réussis, ${failed} échoués`);

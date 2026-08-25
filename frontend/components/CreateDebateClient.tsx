@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredAuth } from "@/lib/auth";
+import { MAX_TITLE_LENGTH, MIN_TITLE_LENGTH } from "@/lib/constants";
 import { useAuthSession } from "@/lib/useAuthSession";
 import { createProposedDebate } from "@/lib/debates-api";
 import { getSocket } from "@/lib/socket";
@@ -47,7 +48,7 @@ export function CreateDebateClient() {
         createTimeoutRef.current = null;
       }
       setLoading(false);
-      setError(payload.message || "Impossible de creer le debat.");
+      setError(payload.message || "Impossible de créer le débat.");
     }
 
     function onConnectError() {
@@ -56,7 +57,7 @@ export function CreateDebateClient() {
         createTimeoutRef.current = null;
       }
       setLoading(false);
-      setError("Connexion backend impossible. Verifiez que le serveur tourne.");
+      setError("Connexion au serveur impossible. Vérifiez que le backend est démarré.");
     }
 
     socket.on("roomCreated", onRoomCreated);
@@ -84,15 +85,26 @@ export function CreateDebateClient() {
       return;
     }
 
-    if (!title.trim()) {
-      setError("Le titre du debat est requis.");
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError("Le titre du débat est requis.");
+      return;
+    }
+
+    if (trimmedTitle.length < MIN_TITLE_LENGTH) {
+      setError(`Le titre doit contenir au moins ${MIN_TITLE_LENGTH} caractères.`);
+      return;
+    }
+
+    if (trimmedTitle.length > MAX_TITLE_LENGTH) {
+      setError(`Le titre ne peut pas dépasser ${MAX_TITLE_LENGTH} caractères.`);
       return;
     }
 
     if (createMode === "proposed") {
       setLoading(true);
       try {
-        const created = await createProposedDebate(title.trim(), turnDuration);
+        const created = await createProposedDebate(trimmedTitle, turnDuration);
         router.push(`/room/${created.id}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Impossible de proposer le débat.");
@@ -105,11 +117,11 @@ export function CreateDebateClient() {
     setLoading(true);
     createTimeoutRef.current = setTimeout(() => {
       setLoading(false);
-      setError("Aucune reponse du serveur. Reessayez.");
+      setError("Aucune réponse du serveur. Réessayez.");
     }, 6000);
 
     getSocket().emit("createRoom", {
-      title: title.trim(),
+      title: trimmedTitle,
       turnDuration,
       accessToken,
     });
@@ -118,11 +130,11 @@ export function CreateDebateClient() {
   return (
     <div className="stack">
       <Link href="/" className="btn btn-ghost room-back">
-        Retour a l'accueil
+        Retour à l'accueil
       </Link>
 
       <section className="card create-debate-card reveal">
-        <h1>Creer un nouveau debat</h1>
+        <h1>Créer un nouveau débat</h1>
 
         {authLoading ? (
           <p className="muted">Verification de la session…</p>
@@ -178,15 +190,20 @@ export function CreateDebateClient() {
             )}
 
             <form className="create-form" onSubmit={(e) => void handleCreate(e)}>
-              <label htmlFor="debate-title">Titre du debat</label>
+              <label htmlFor="debate-title">Titre du débat</label>
               <input
                 id="debate-title"
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Ex: L'IA doit-elle etre strictement regulee ?"
+                maxLength={MAX_TITLE_LENGTH}
+                onChange={(event) => setTitle(event.target.value.slice(0, MAX_TITLE_LENGTH))}
+                placeholder="Ex : l'IA doit-elle être strictement régulée ?"
               />
 
-              <label htmlFor="turn-duration">Duree de tour</label>
+              <p className="muted" aria-live="polite">
+                {title.length}/{MAX_TITLE_LENGTH} caractères
+              </p>
+
+              <label htmlFor="turn-duration">Durée d&apos;un tour</label>
               <select
                 id="turn-duration"
                 value={turnDuration}
@@ -198,12 +215,16 @@ export function CreateDebateClient() {
                 <option value={300}>5 minutes</option>
                 <option value={600}>10 minutes</option>
               </select>
+              <p className="muted">
+                Délai maximum pour répondre à son tour. Le débat alterne un message chacun :
+                envoyer son argument passe la parole à l&apos;autre participant.
+              </p>
 
               {error ? <p className="muted">{error}</p> : null}
 
               <button type="submit" disabled={loading}>
                 {loading
-                  ? "Creation..."
+                  ? "Création…"
                   : createMode === "proposed"
                     ? "Proposer le sujet"
                     : "Creer le debat"}

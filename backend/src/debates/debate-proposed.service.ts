@@ -8,6 +8,7 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import { AuthService } from "../auth/auth.service";
 import { NotificationsPushService } from "../notifications/notifications-push.service";
+import { ModerationService } from "../moderation/moderation.service";
 import { SupabaseService } from "../supabase/supabase.service";
 import { DebateCreationService } from "./debate-creation.service";
 import { castSupabaseRow } from "./debate-db.types";
@@ -49,6 +50,7 @@ export class DebateProposedService {
     private readonly debateCreationService: DebateCreationService,
     private readonly debatesService: DebatesService,
     private readonly notificationsPush: NotificationsPushService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   async createProposed(
@@ -62,6 +64,17 @@ export class DebateProposedService {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       throw new BadRequestException("Le titre du débat est requis.");
+    }
+
+    // Même règle que pour un débat live : le titre est public et permanent, il
+    // ne peut pas être le seul texte de l'app à échapper à la modération.
+    const titleModeration = await this.moderationService.moderateText(trimmedTitle);
+    if (titleModeration.action !== "allow") {
+      throw new BadRequestException(
+        titleModeration.action === "block"
+          ? this.moderationService.getBlockMessage(titleModeration)
+          : "Ce titre risque d'être mal reçu : reformulez-le avant de proposer le sujet.",
+      );
     }
 
     const allowed = [180, 300, 600];

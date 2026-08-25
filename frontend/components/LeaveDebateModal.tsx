@@ -49,10 +49,17 @@ export function LeaveDebateModal({
             annulé (il pourra être reproposé plus tard).
           </p>
         ) : (
-          <p className="muted">
-            Choisissez comment quitter : mettre en pause pour une reprise ultérieure, ou terminer
-            définitivement l&apos;échange (conclusions de chaque participant).
-          </p>
+          <>
+            <p className="muted">
+              Choisissez comment quitter : mettre en pause pour une reprise ultérieure, ou
+              terminer définitivement l&apos;échange (chaque participant pourra ensuite rédiger
+              sa conclusion).
+            </p>
+            <p className="muted">
+              En pause, l&apos;un ou l&apos;autre peut demander la reprise — elle est validée par
+              celui qui ne l&apos;a pas demandée.
+            </p>
+          </>
         )}
         <div className="leave-debate-actions">
           {cancelOnly ? (

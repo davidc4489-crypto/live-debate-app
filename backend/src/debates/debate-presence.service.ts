@@ -162,7 +162,12 @@ export class DebatePresenceService {
   }
 
   /**
-   * Point d'autorité reprise : fusionne l'état live (room) et la ligne DB avant validation.
+   * Point d'autorité reprise : fusionne l'état live (room) et la ligne DB.
+   *
+   * Règle : **n'importe lequel des deux participants** peut demander la reprise,
+   * et c'est l'**autre** qui la valide. Auparavant seul le pauseur pouvait la
+   * demander — si celui-ci ne revenait jamais, son adversaire était coincé,
+   * sans autre issue que de terminer le débat.
    */
   private resolveResumeAuthState(
     room: RoomState,
@@ -171,17 +176,35 @@ export class DebatePresenceService {
     effectiveStatus: string | undefined;
     pausedByUserId: string | null;
     resumeRequestedAt: string | null;
+    resumeRequestedByUserId: string | null;
   } {
     const effectiveStatus =
       dbRow?.status === "paused" || room.status === "paused"
         ? "paused"
         : dbRow?.status ?? room.status;
 
+    const pausedByUserId = dbRow?.paused_by_user_id ?? room.pausedByUserId ?? null;
+
     return {
       effectiveStatus,
-      pausedByUserId: dbRow?.paused_by_user_id ?? room.pausedByUserId ?? null,
+      pausedByUserId,
       resumeRequestedAt: dbRow?.resume_requested_at ?? room.resumeRequestedAt ?? null,
+      // Repli si la migration 00015 n'est pas appliquée : avant elle, seul le
+      // pauseur pouvait demander la reprise, le demandeur était donc lui.
+      resumeRequestedByUserId:
+        dbRow?.resume_requested_by_user_id ??
+        room.resumeRequestedByUserId ??
+        pausedByUserId,
     };
+  }
+
+  /** Participant inscrit au débat (slot A ou B), seul habilité sur la reprise. */
+  private assertIsParticipant(session: SocketSession): void {
+    if (session.role !== "participantA" && session.role !== "participantB") {
+      throw new ForbiddenException(
+        "Seuls les participants peuvent gérer la reprise du débat.",
+      );
+    }
   }
 
   assertCanRequestResume(
@@ -197,17 +220,15 @@ export class DebatePresenceService {
       throw new ForbiddenException("Débat introuvable.");
     }
 
-    const { effectiveStatus, pausedByUserId, resumeRequestedAt } =
-      this.resolveResumeAuthState(room, dbRow);
+    this.assertIsParticipant(session);
+
+    const { effectiveStatus, resumeRequestedAt } = this.resolveResumeAuthState(
+      room,
+      dbRow,
+    );
 
     if (effectiveStatus !== "paused") {
       throw new BadRequestException("Ce débat n'est pas en pause.");
-    }
-
-    if (pausedByUserId !== session.userId) {
-      throw new ForbiddenException(
-        "Seul le participant qui a mis le débat en pause peut demander la reprise.",
-      );
     }
 
     if (resumeRequestedAt) {
@@ -228,21 +249,23 @@ export class DebatePresenceService {
       throw new ForbiddenException("Débat introuvable.");
     }
 
-    const { effectiveStatus, pausedByUserId, resumeRequestedAt } =
+    this.assertIsParticipant(session);
+
+    const { effectiveStatus, resumeRequestedAt, resumeRequestedByUserId } =
       this.resolveResumeAuthState(room, dbRow);
 
     if (effectiveStatus !== "paused") {
       throw new BadRequestException("Ce débat n'est pas en pause.");
     }
 
-    if (pausedByUserId === session.userId) {
+    if (!resumeRequestedAt) {
+      throw new BadRequestException("Aucune demande de reprise en attente.");
+    }
+
+    if (resumeRequestedByUserId === session.userId) {
       throw new ForbiddenException(
         "L'autre participant doit valider la reprise du débat.",
       );
-    }
-
-    if (!resumeRequestedAt) {
-      throw new BadRequestException("Aucune demande de reprise en attente.");
     }
   }
 }
