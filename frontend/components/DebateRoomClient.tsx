@@ -528,9 +528,19 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
   const showConclusionForm =
     isFinished && isParticipant && Boolean(user?.id) && sessionUserId === user?.id;
 
+  const stanceByUserId = useMemo(() => {
+    const map = new Map<string, "for" | "against">();
+    for (const participant of dbDebate?.participants ?? []) {
+      if (participant.userId && participant.stance) {
+        map.set(participant.userId, participant.stance);
+      }
+    }
+    return map;
+  }, [dbDebate?.participants]);
+
   const headerParticipants = useMemo(() => {
     return (
-      rosterToParticipants(room?.participantRoster) ??
+      rosterToParticipants(room?.participantRoster, dbDebate?.participants) ??
       dbDebate?.participants ?? [
         { userId: null, displayName: "En attente d'un participant" },
         { userId: null, displayName: "En attente d'un participant" },
@@ -787,6 +797,7 @@ export function DebateRoomClient({ roomId, dbDebate: initialDbDebate }: DebateRo
             id: m.id,
             author: m.user,
             authorUserId: m.userId ?? null,
+            authorStance: m.userId ? stanceByUserId.get(m.userId) ?? null : null,
             text: m.text,
           }))}
           currentUserLabel={displayName}

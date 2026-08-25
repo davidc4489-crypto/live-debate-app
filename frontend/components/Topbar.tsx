@@ -9,6 +9,7 @@ import { useAuthSession } from "../lib/useAuthSession";
 import { AppLogo } from "./AppLogo";
 import { AuthModal, AuthModalMode } from "./AuthModal";
 import { NotificationsMenu } from "./NotificationsMenu";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Topbar() {
   const router = useRouter();
@@ -99,6 +100,7 @@ export function Topbar() {
           </div>
 
           <div className="topbar-actions">
+            <ThemeToggle />
             {loadingSession ? (
               <span className="auth-placeholder" aria-hidden />
             ) : user ? (

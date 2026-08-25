@@ -46,6 +46,7 @@ export interface DebateRow {
   created_at: string;
   ended_at?: string | null;
   created_by?: string | null;
+  creator_stance?: "for" | "against" | null;
   expires_at?: string | null;
   validated_at?: string | null;
   opponent_joined_at?: string | null;
@@ -104,6 +105,8 @@ export class DebatesService {
         title,
         status,
         created_at,
+        created_by,
+        creator_stance,
         paused_by_user_id,
         resume_requested_at,
         scheduled_at,
@@ -146,6 +149,7 @@ export class DebatesService {
         created_at,
         ended_at,
         created_by,
+        creator_stance,
         expires_at,
         validated_at,
         opponent_joined_at,
@@ -186,6 +190,23 @@ export class DebatesService {
     return this.toDetail(data as unknown as DebateRow);
   }
 
+  /**
+   * Position de chaque participant, déduite de celle du créateur.
+   *
+   * `creator_stance` était enregistré à la création puis jamais relu : le camp
+   * choisi dans l'assistant disparaissait, et rien dans l'interface ne disait
+   * qui défendait quoi. L'adversaire tient forcément le camp opposé.
+   */
+  private stanceFor(
+    userId: string | null,
+    debate: DebateRow,
+  ): DebateParticipantDto["stance"] {
+    const creatorStance = debate.creator_stance ?? null;
+    if (!creatorStance || !userId || !debate.created_by) return null;
+    if (userId === debate.created_by) return creatorStance;
+    return creatorStance === "for" ? "against" : "for";
+  }
+
   private extractParticipants(debate: DebateRow): [DebateParticipantDto, DebateParticipantDto] {
     const participants = (debate.debate_participants ?? [])
       .filter((row) => row.role === "participant" && row.position != null)
@@ -196,12 +217,30 @@ export class DebatesService {
         return {
           userId,
           displayName: profile ? displayName(profile) : "Participant",
+          stance: this.stanceFor(userId, debate),
         };
       });
 
+    // Le siège encore libre porte le camp opposé à celui déjà pris : un
+    // visiteur voit d'emblée quelle position il aurait à défendre.
+    const takenStance = participants[0]?.stance ?? null;
+    const freeStance: DebateParticipantDto["stance"] = takenStance
+      ? takenStance === "for"
+        ? "against"
+        : "for"
+      : null;
+
     return [
-      participants[0] ?? { userId: null, displayName: "En attente d'un participant" },
-      participants[1] ?? { userId: null, displayName: "En attente d'un participant" },
+      participants[0] ?? {
+        userId: null,
+        displayName: "En attente d'un participant",
+        stance: debate.creator_stance ?? null,
+      },
+      participants[1] ?? {
+        userId: null,
+        displayName: "En attente d'un participant",
+        stance: freeStance,
+      },
     ];
   }
 

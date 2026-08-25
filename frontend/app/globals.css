@@ -3,21 +3,183 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Palette en canaux RGB : Tailwind les consomme via `rgb(var(--x) / <alpha>)`
+   * (voir tailwind.config.js). Basculer de thème = redéfinir ces variables,
+   * aucune classe utilitaire n'a à changer.
+   */
   :root {
     color-scheme: light;
-    --bg: #fafafa;
-    --card: #ffffff;
-    --text: #09090b;
-    --muted: #71717a;
-    --border: rgba(9, 9, 11, 0.08);
-    --primary: #18181b;
-    --primary-hover: #27272a;
-    --accent: #2563eb;
-    --danger: #b91c1c;
+
+    --surface: 255 255 255;
+    --surface-muted: 250 250 250;
+    --surface-subtle: 244 244 245;
+    --surface-elevated: 255 255 255;
+
+    --ink: 9 9 11;
+    --ink-secondary: 63 63 70;
+    --ink-muted: 113 113 122;
+    --ink-faint: 161 161 170;
+
+    --brand: 24 24 27;
+    --brand-hover: 39 39 42;
+    --brand-light: 244 244 245;
+    --brand-ring: 228 228 231;
+    --on-brand: 255 255 255;
+
+    --accent: 37 99 235;
+    --accent-hover: 29 78 216;
+    --accent-light: 239 246 255;
+
+    --border: 228 228 231;
+    --border-strong: 212 212 216;
+
+    --success-soft: 236 253 245;
+    --success-text: 4 120 87;
+    --success-border: 167 243 208;
+
+    --warning-soft: 255 251 235;
+    --warning-text: 180 83 9;
+    --warning-border: 253 230 138;
+
+    --danger-soft: 254 242 242;
+    --danger-text: 185 28 28;
+    --danger-border: 254 202 202;
+
+    /* Indigo contre orange : deux camps de poids égal. Le vert et le rouge
+       auraient signifié « a raison » / « a tort », ce qu'un débat ne tranche pas. */
+    --stance-for: 67 56 202;
+    --stance-for-soft: 238 242 255;
+    --stance-for-border: 199 210 254;
+
+    --stance-against: 194 65 12;
+    --stance-against-soft: 255 247 237;
+    --stance-against-border: 254 215 170;
+
+    --shadow-card: 0 0 0 1px rgb(9 9 11 / 0.04), 0 1px 2px rgb(9 9 11 / 0.04);
+    --shadow-elevated: 0 0 0 1px rgb(9 9 11 / 0.06), 0 4px 6px -1px rgb(9 9 11 / 0.05),
+      0 12px 24px -8px rgb(9 9 11 / 0.08);
+    --shadow-float: 0 0 0 1px rgb(9 9 11 / 0.05), 0 8px 30px -12px rgb(9 9 11 / 0.12);
+    --shadow-glow: 0 0 80px -20px rgb(37 99 235 / 0.15);
+
     --radius: 12px;
     --topbar-h: 56px;
     --sidebar-w: 56px;
     --sidebar-w-expanded: 220px;
+  }
+
+  /*
+   * Thème sombre. Appliqué automatiquement selon la préférence système, et
+   * forcé par `data-theme` quand la personne a choisi explicitement.
+   * Le sélecteur `:not([data-theme="light"])` garantit qu'un choix clair
+   * explicite l'emporte toujours sur la préférence système.
+   */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+
+      --surface: 24 24 27;
+      --surface-muted: 9 9 11;
+      --surface-subtle: 39 39 42;
+      --surface-elevated: 32 32 36;
+
+      --ink: 250 250 250;
+      --ink-secondary: 212 212 216;
+      --ink-muted: 161 161 170;
+      --ink-faint: 113 113 122;
+
+      --brand: 250 250 250;
+      --brand-hover: 228 228 231;
+      --brand-light: 39 39 42;
+      --brand-ring: 63 63 70;
+      --on-brand: 9 9 11;
+
+      --accent: 96 165 250;
+      --accent-hover: 147 197 253;
+      --accent-light: 30 41 59;
+
+      --border: 39 39 42;
+      --border-strong: 63 63 70;
+
+      --success-soft: 6 46 34;
+      --success-text: 110 231 183;
+      --success-border: 6 78 59;
+
+      --warning-soft: 48 32 6;
+      --warning-text: 252 211 77;
+      --warning-border: 87 57 10;
+
+      --danger-soft: 55 15 15;
+      --danger-text: 252 165 165;
+      --danger-border: 91 26 26;
+
+      --stance-for: 165 180 252;
+      --stance-for-soft: 33 30 74;
+      --stance-for-border: 55 48 118;
+
+      --stance-against: 253 186 116;
+      --stance-against-soft: 61 30 8;
+      --stance-against-border: 100 50 14;
+
+      --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
+      --shadow-elevated: 0 0 0 1px rgb(255 255 255 / 0.08), 0 4px 6px -1px rgb(0 0 0 / 0.4),
+        0 12px 24px -8px rgb(0 0 0 / 0.5);
+      --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08), 0 8px 30px -12px rgb(0 0 0 / 0.6);
+      --shadow-glow: 0 0 80px -20px rgb(96 165 250 / 0.2);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --surface: 24 24 27;
+    --surface-muted: 9 9 11;
+    --surface-subtle: 39 39 42;
+    --surface-elevated: 32 32 36;
+
+    --ink: 250 250 250;
+    --ink-secondary: 212 212 216;
+    --ink-muted: 161 161 170;
+    --ink-faint: 113 113 122;
+
+    --brand: 250 250 250;
+    --brand-hover: 228 228 231;
+    --brand-light: 39 39 42;
+    --brand-ring: 63 63 70;
+    --on-brand: 9 9 11;
+
+    --accent: 96 165 250;
+    --accent-hover: 147 197 253;
+    --accent-light: 30 41 59;
+
+    --border: 39 39 42;
+    --border-strong: 63 63 70;
+
+    --success-soft: 6 46 34;
+    --success-text: 110 231 183;
+    --success-border: 6 78 59;
+
+    --warning-soft: 48 32 6;
+    --warning-text: 252 211 77;
+    --warning-border: 87 57 10;
+
+    --danger-soft: 55 15 15;
+    --danger-text: 252 165 165;
+    --danger-border: 91 26 26;
+
+    --stance-for: 165 180 252;
+    --stance-for-soft: 33 30 74;
+    --stance-for-border: 55 48 118;
+
+    --stance-against: 253 186 116;
+    --stance-against-soft: 61 30 8;
+    --stance-against-border: 100 50 14;
+
+    --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-elevated: 0 0 0 1px rgb(255 255 255 / 0.08), 0 4px 6px -1px rgb(0 0 0 / 0.4),
+      0 12px 24px -8px rgb(0 0 0 / 0.5);
+    --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08), 0 8px 30px -12px rgb(0 0 0 / 0.6);
+    --shadow-glow: 0 0 80px -20px rgb(96 165 250 / 0.2);
   }
 
   html {
@@ -26,8 +188,8 @@
 
   body {
     @apply m-0 min-h-screen bg-surface-muted font-sans text-ink antialiased;
-    font-size: 15px;
-    line-height: 1.6;
+    font-size: 16px;
+    line-height: 1.65;
     font-feature-settings: "cv11", "ss01";
   }
 
@@ -60,9 +222,9 @@
   input,
   select,
   textarea {
-    @apply w-full rounded-md border border-border bg-white px-3 py-2 text-ink transition-colors;
+    @apply w-full rounded-md border border-border bg-surface px-3 py-2 text-ink transition-colors;
     font: inherit;
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
   }
 
   input:focus,
@@ -118,7 +280,7 @@
   }
 
   .card {
-    @apply rounded-card border border-border bg-white p-5;
+    @apply rounded-card border border-border bg-surface p-5;
   }
 
   .stack {
@@ -126,7 +288,7 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-[14px] font-medium;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-[15px] font-medium;
     @apply transition-all duration-200 ease-smooth;
   }
 
@@ -137,23 +299,23 @@
   }
 
   .btn-primary {
-    @apply border border-transparent bg-brand text-white shadow-card;
+    @apply border border-transparent bg-brand text-brand-on shadow-card;
   }
 
   .btn-primary:not(:disabled):hover {
     @apply bg-brand-hover;
     transform: translateY(-1px);
-    box-shadow: elevated;
+    box-shadow: var(--shadow-elevated);
   }
 
   .btn-secondary {
-    @apply border border-border bg-white text-ink-secondary shadow-card;
+    @apply border border-border bg-surface text-ink-secondary shadow-card;
   }
 
   .btn-secondary:not(:disabled):hover {
     @apply border-border-strong bg-surface-subtle text-ink;
     transform: translateY(-1px);
-    box-shadow: elevated;
+    box-shadow: var(--shadow-elevated);
   }
 
   .btn-ghost {
@@ -169,11 +331,11 @@
   }
 
   .btn-sm {
-    @apply rounded-md px-2.5 py-1 text-[13px];
+    @apply rounded-md px-2.5 py-1 text-[14px];
   }
 
   .btn-danger {
-    @apply border border-transparent bg-danger-text text-white;
+    @apply border border-transparent bg-danger-text text-brand-on;
   }
 
   .btn-danger:not(:disabled):hover {
@@ -187,7 +349,7 @@
 
   /* Topbar */
   .topbar {
-    @apply sticky top-0 z-40 w-full border-b border-border bg-white/80 backdrop-blur-md;
+    @apply sticky top-0 z-40 w-full border-b border-border bg-surface/80 backdrop-blur-md;
   }
 
   .topbar-inner {
@@ -238,7 +400,7 @@
   }
 
   .topbar-avatar {
-    @apply flex h-8 w-8 items-center justify-center rounded-full bg-surface-subtle text-[12px] font-semibold text-ink-secondary;
+    @apply flex h-8 w-8 items-center justify-center rounded-full bg-surface-subtle text-[13px] font-semibold text-ink-secondary;
   }
 
   .topbar-profile-menu-head {
@@ -246,7 +408,7 @@
   }
 
   .topbar-profile-menu-name {
-    @apply block text-[12px] font-semibold text-ink;
+    @apply block text-[13px] font-semibold text-ink;
   }
 
   .topbar-profile-menu-signout {
@@ -256,7 +418,7 @@
 
   /* Sidebar */
   .sidebar {
-    @apply sticky z-30 flex shrink-0 flex-col border-r border-border bg-white transition-[width] duration-150;
+    @apply sticky z-30 flex shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-150;
     top: var(--topbar-h);
     height: calc(100vh - var(--topbar-h));
     width: var(--sidebar-w);
@@ -292,7 +454,7 @@
   }
 
   .sidebar-item {
-    @apply inline-flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-ink-secondary no-underline transition-colors hover:bg-surface-muted hover:text-ink;
+    @apply inline-flex h-9 items-center gap-2.5 rounded-md px-2 text-[14px] font-medium text-ink-secondary no-underline transition-colors hover:bg-surface-muted hover:text-ink;
   }
 
   .sidebar-item.is-active {
@@ -312,7 +474,7 @@
   }
 
   .sidebar-cta {
-    @apply inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border-0 bg-brand px-2 text-[13px] font-medium text-white transition-colors hover:bg-brand-hover;
+    @apply inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border-0 bg-brand px-2 text-[14px] font-medium text-brand-on transition-colors hover:bg-brand-hover;
     cursor: pointer;
   }
 
@@ -355,7 +517,7 @@
     }
 
     .sidebar-backdrop {
-      @apply fixed left-0 right-0 bottom-0 z-30 block cursor-default border-0 bg-ink/30 p-0;
+      @apply fixed left-0 right-0 bottom-0 z-30 block cursor-default border-0 bg-ink/40 p-0;
       top: var(--topbar-h);
     }
   }
@@ -367,12 +529,12 @@
   }
 
   .kicker {
-    @apply mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted;
+    @apply mb-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-muted;
   }
 
   /* Debate cards */
   .debate-card {
-    @apply flex flex-col gap-4 rounded-card border border-border bg-white p-5 shadow-card;
+    @apply flex flex-col gap-4 rounded-card border border-border bg-surface p-5 shadow-card;
     @apply transition-all duration-200 ease-smooth;
   }
 
@@ -390,7 +552,7 @@
   }
 
   .debate-card-meta {
-    @apply flex flex-wrap items-center gap-2 text-[13px] text-ink-muted;
+    @apply flex flex-wrap items-center gap-2 text-[14px] text-ink-muted;
   }
 
   .card-topline {
@@ -402,11 +564,11 @@
   }
 
   .theme-badge {
-    @apply rounded-md bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-ink-secondary;
+    @apply rounded-md bg-surface-subtle px-2 py-0.5 text-[12px] font-medium text-ink-secondary;
   }
 
   .live-badge {
-    @apply inline-flex items-center gap-1.5 rounded-md bg-brand-accent-light px-2 py-0.5 text-[11px] font-medium text-brand-accent;
+    @apply inline-flex items-center gap-1.5 rounded-md bg-brand-accent-light px-2 py-0.5 text-[12px] font-medium text-brand-accent;
   }
 
   .live-badge::before {
@@ -430,7 +592,7 @@
   }
 
   .status-badge {
-    @apply rounded-md bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-ink-muted;
+    @apply rounded-md bg-surface-subtle px-2 py-0.5 text-[12px] font-medium text-ink-muted;
   }
 
   .status-badge--accent {
@@ -438,11 +600,11 @@
   }
 
   .finished-badge {
-    @apply rounded-md bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-ink-muted;
+    @apply rounded-md bg-surface-subtle px-2 py-0.5 text-[12px] font-medium text-ink-muted;
   }
 
   .debate-scheduled-date {
-    @apply m-0 text-[13px] font-medium leading-snug text-brand-accent;
+    @apply m-0 text-[14px] font-medium leading-snug text-brand-accent;
   }
 
   .participants {
@@ -450,7 +612,7 @@
   }
 
   .participant-pill {
-    @apply inline-flex items-center gap-1.5 rounded-pill border border-border bg-white px-2 py-0.5 text-[12px] text-ink-secondary;
+    @apply inline-flex items-center gap-1.5 rounded-pill border border-border bg-surface px-2 py-0.5 text-[13px] text-ink-secondary;
   }
 
   .participant-pill-link {
@@ -462,7 +624,7 @@
   }
 
   .avatar {
-    @apply flex h-6 w-6 items-center justify-center rounded-full bg-surface-subtle text-[10px] font-semibold text-ink-secondary;
+    @apply flex h-6 w-6 items-center justify-center rounded-full bg-surface-subtle text-[12px] font-semibold text-ink-secondary;
   }
 
   /* Debate room */
@@ -507,7 +669,7 @@
   }
 
   .debate-message-card {
-    @apply rounded-lg border border-border bg-white px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-secondary;
+    @apply rounded-lg border border-border bg-surface px-3.5 py-2.5 text-[14px] leading-relaxed text-ink-secondary;
   }
 
   .debate-message--right .debate-message-card {
@@ -519,15 +681,15 @@
   }
 
   .debate-message-meta {
-    @apply flex flex-wrap items-center gap-2 px-1 text-[11px] text-ink-faint;
+    @apply flex flex-wrap items-center gap-2 px-1 text-[12px] text-ink-faint;
   }
 
   .turn-badge {
-    @apply rounded-md bg-white px-1.5 py-0.5 text-[10px] font-medium text-ink-muted ring-1 ring-border;
+    @apply rounded-md bg-surface px-1.5 py-0.5 text-[12px] font-medium text-ink-muted ring-1 ring-border;
   }
 
   .turn-timer {
-    @apply inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-[12px];
+    @apply inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-[13px];
   }
 
   .turn-timer.safe {
@@ -543,7 +705,7 @@
   }
 
   .turn-status {
-    @apply text-[12px] text-ink-muted;
+    @apply text-[13px] text-ink-muted;
   }
 
   .turn-status.active {
@@ -551,7 +713,7 @@
   }
 
   .role-badge {
-    @apply rounded-md border px-2 py-0.5 text-[11px] font-medium;
+    @apply rounded-md border px-2 py-0.5 text-[12px] font-medium;
   }
 
   .role-badge.participantA,
@@ -576,7 +738,7 @@
   }
 
   .chat-char-count {
-    @apply absolute -bottom-5 right-0 text-[11px] text-ink-faint;
+    @apply absolute -bottom-5 right-0 text-[12px] text-ink-faint;
   }
 
   /* Profile */
@@ -601,7 +763,7 @@
   }
 
   .profile-badge {
-    @apply rounded-md px-2 py-0.5 text-[11px] font-medium;
+    @apply rounded-md px-2 py-0.5 text-[12px] font-medium;
   }
 
   .profile-badge.premium {
@@ -613,7 +775,7 @@
   }
 
   .interest-pill {
-    @apply rounded-md border border-border bg-white px-2.5 py-0.5 text-[12px] text-ink-secondary;
+    @apply rounded-md border border-border bg-surface px-2.5 py-0.5 text-[13px] text-ink-secondary;
   }
 
   .interest-pill.selected {
@@ -628,7 +790,7 @@
   }
 
   .auth-modal {
-    @apply relative w-full max-w-md rounded-card border border-border bg-white p-5 shadow-card md:p-6;
+    @apply relative w-full max-w-md rounded-card border border-border bg-surface p-5 shadow-card md:p-6;
     animation: fade-in 0.18s ease both;
   }
 
@@ -651,7 +813,7 @@
   }
 
   .auth-modal-subtitle {
-    @apply mt-1.5 mb-5 text-[13px] leading-relaxed text-ink-muted;
+    @apply mt-1.5 mb-5 text-[14px] leading-relaxed text-ink-muted;
   }
 
   .auth-form {
@@ -659,7 +821,7 @@
   }
 
   .auth-form label {
-    @apply grid gap-1 text-[12px] font-medium text-ink-secondary;
+    @apply grid gap-1 text-[13px] font-medium text-ink-secondary;
   }
 
   .auth-form-row {
@@ -671,7 +833,7 @@
   }
 
   .auth-switch {
-    @apply mt-5 border-t border-border pt-3 text-center text-[12px] text-ink-muted;
+    @apply mt-5 border-t border-border pt-3 text-center text-[13px] text-ink-muted;
   }
 
   .auth-switch-link {
@@ -680,7 +842,7 @@
   }
 
   .auth-error {
-    @apply m-0 rounded-md border border-danger-text/15 bg-danger-soft px-3 py-2 text-[12px] text-danger-text;
+    @apply m-0 rounded-md border border-danger-text/15 bg-danger-soft px-3 py-2 text-[13px] text-danger-text;
   }
 
   .moderation-warn-banner {
@@ -688,7 +850,7 @@
   }
 
   .debate-lifecycle-banner {
-    @apply border-border bg-surface-muted text-[13px] leading-relaxed;
+    @apply border-border bg-surface-muted text-[14px] leading-relaxed;
   }
 
   .debate-validate-banner {
@@ -719,7 +881,7 @@
   }
 
   .section-header p {
-    @apply mt-1 text-[13px] text-ink-muted;
+    @apply mt-1 text-[14px] text-ink-muted;
   }
 
   .room-back {
@@ -743,7 +905,7 @@
   }
 
   .section-subtitle {
-    @apply m-0 mt-2 max-w-2xl text-[14px] leading-relaxed text-ink-muted;
+    @apply m-0 mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-muted;
   }
 
   .chips-wrap {
@@ -751,7 +913,7 @@
   }
 
   .chip {
-    @apply rounded-lg border border-border bg-white px-3 py-1.5 text-[13px] font-medium text-ink-muted shadow-card;
+    @apply rounded-lg border border-border bg-surface px-3 py-1.5 text-[14px] font-medium text-ink-muted shadow-card;
     @apply transition-all duration-200 ease-smooth;
   }
 
@@ -761,7 +923,7 @@
   }
 
   .chip.active {
-    @apply border-ink/10 bg-ink text-white shadow-card;
+    @apply border-ink/10 bg-ink text-brand-on shadow-card;
   }
 
   .debate-grid {
@@ -769,7 +931,7 @@
   }
 
   .empty-state {
-    @apply rounded-lg border border-dashed border-border bg-surface-muted px-6 py-10 text-center text-[14px] text-ink-muted;
+    @apply rounded-lg border border-dashed border-border bg-surface-muted px-6 py-10 text-center text-[15px] text-ink-muted;
   }
 
   .moderation-warn-actions {
@@ -794,19 +956,19 @@
   }
 
   .moderation-chip {
-    @apply rounded-full border border-warning-text/20 bg-white/70 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-warning-text;
+    @apply rounded-full border border-warning-text/20 bg-surface/70 px-2.5 py-0.5 text-[12px] font-medium uppercase tracking-wide text-warning-text;
   }
 
   .moderation-chip-danger {
-    @apply border-danger-text/20 bg-white/70 text-danger-text;
+    @apply border-danger-text/20 bg-surface/70 text-danger-text;
   }
 
   .moderation-warn-tip {
-    @apply mt-2 rounded-md bg-white/60 px-3 py-2 text-[13px] leading-relaxed text-ink-secondary;
+    @apply mt-2 rounded-md bg-surface/60 px-3 py-2 text-[14px] leading-relaxed text-ink-secondary;
   }
 
   .moderation-severity {
-    @apply mt-3 flex items-center gap-2 text-[11px] text-ink-muted;
+    @apply mt-3 flex items-center gap-2 text-[12px] text-ink-muted;
   }
 
   .moderation-severity-label {
@@ -839,11 +1001,11 @@
   }
 
   .debate-insights-head h3 {
-    @apply m-0 text-[13px] font-semibold uppercase tracking-wide text-ink-muted;
+    @apply m-0 text-[14px] font-semibold uppercase tracking-wide text-ink-muted;
   }
 
   .debate-insights-meta {
-    @apply text-[12px] text-ink-faint;
+    @apply text-[13px] text-ink-faint;
   }
 
   .debate-insights-gauges {
@@ -859,7 +1021,7 @@
   }
 
   .insight-gauge-label {
-    @apply text-[13px] font-medium text-ink-secondary;
+    @apply text-[14px] font-medium text-ink-secondary;
   }
 
   .insight-gauge-value {
@@ -887,7 +1049,7 @@
   }
 
   .insight-gauge-hint {
-    @apply m-0 text-[11px] leading-snug text-ink-faint;
+    @apply m-0 text-[12px] leading-snug text-ink-faint;
   }
 
   /* --- Retour privé sur le message envoyé ------------------------------- */
@@ -912,15 +1074,15 @@
   }
 
   .message-insight-score {
-    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/80 text-[13px] font-semibold tabular-nums text-ink;
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface/80 text-[14px] font-semibold tabular-nums text-ink;
   }
 
   .message-insight-title {
-    @apply m-0 text-[13px] font-medium text-ink-secondary;
+    @apply m-0 text-[14px] font-medium text-ink-secondary;
   }
 
   .message-insight-signals {
-    @apply m-0 mt-1 flex list-none flex-wrap gap-x-3 gap-y-0.5 p-0 text-[11px];
+    @apply m-0 mt-1 flex list-none flex-wrap gap-x-3 gap-y-0.5 p-0 text-[12px];
   }
 
   .signal-positive {
@@ -936,7 +1098,7 @@
   }
 
   .message-insight-tips {
-    @apply m-0 mt-2 list-disc space-y-0.5 pl-5 text-[12px] leading-relaxed text-ink-secondary;
+    @apply m-0 mt-2 list-disc space-y-0.5 pl-5 text-[13px] leading-relaxed text-ink-secondary;
   }
 
   .chat-char-count.at-limit {
@@ -978,7 +1140,7 @@
   }
 
   .mission-section-label {
-    @apply m-0 text-[11px] font-semibold uppercase tracking-wider text-brand;
+    @apply m-0 text-[12px] font-semibold uppercase tracking-wider text-brand;
   }
 
   .mission-section h2 {
@@ -986,7 +1148,7 @@
   }
 
   .mission-prose {
-    @apply space-y-3 text-[14px] leading-relaxed text-ink-secondary;
+    @apply space-y-3 text-[15px] leading-relaxed text-ink-secondary;
   }
 
   .mission-prose p {
@@ -1002,7 +1164,7 @@
   }
 
   .mission-checklist li {
-    @apply relative pl-5 text-[13px] leading-relaxed text-ink-secondary;
+    @apply relative pl-5 text-[14px] leading-relaxed text-ink-secondary;
   }
 
   .mission-checklist li::before {
@@ -1017,12 +1179,12 @@
 
   .mission-principle-card h3,
   .mission-audience-card h3 {
-    @apply m-0 mb-1.5 text-[14px] font-semibold text-ink;
+    @apply m-0 mb-1.5 text-[15px] font-semibold text-ink;
   }
 
   .mission-principle-card p,
   .mission-audience-card p {
-    @apply m-0 text-[13px] leading-relaxed text-ink-muted;
+    @apply m-0 text-[14px] leading-relaxed text-ink-muted;
   }
 
   .mission-steps {
@@ -1034,15 +1196,15 @@
   }
 
   .mission-step-num {
-    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface-muted text-[12px] font-semibold text-ink-secondary;
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface-muted text-[13px] font-semibold text-ink-secondary;
   }
 
   .mission-step h3 {
-    @apply m-0 mb-1 text-[14px] font-semibold;
+    @apply m-0 mb-1 text-[15px] font-semibold;
   }
 
   .mission-step p {
-    @apply m-0 text-[13px] leading-relaxed text-ink-muted;
+    @apply m-0 text-[14px] leading-relaxed text-ink-muted;
   }
 
   .mission-vision {
@@ -1050,7 +1212,7 @@
   }
 
   .mission-tagline {
-    @apply text-[14px] font-medium italic text-ink !important;
+    @apply text-[15px] font-medium italic text-ink !important;
   }
 
   .mission-cta-bottom {
@@ -1077,11 +1239,11 @@
   }
 
   .notebook-header p {
-    @apply m-0 max-w-2xl text-[14px] leading-relaxed;
+    @apply m-0 max-w-2xl text-[15px] leading-relaxed;
   }
 
   .notebook-list {
-    @apply rounded-card border border-border bg-white p-5 md:p-6;
+    @apply rounded-card border border-border bg-surface p-5 md:p-6;
   }
 
   .notebook-list-header {
@@ -1101,11 +1263,11 @@
   }
 
   .notebook-note-card h3 {
-    @apply m-0 text-[14px] font-semibold leading-snug text-ink;
+    @apply m-0 text-[15px] font-semibold leading-snug text-ink;
   }
 
   .notebook-note-content {
-    @apply m-0 whitespace-pre-wrap text-[13px] leading-relaxed text-ink-secondary;
+    @apply m-0 whitespace-pre-wrap text-[14px] leading-relaxed text-ink-secondary;
   }
 
   .notebook-links {
@@ -1113,15 +1275,15 @@
   }
 
   .notebook-link {
-    @apply text-[12px] font-medium text-brand no-underline hover:text-brand-hover hover:underline;
+    @apply text-[13px] font-medium text-brand no-underline hover:text-brand-hover hover:underline;
   }
 
   .notebook-message-ref {
-    @apply m-0 text-[12px];
+    @apply m-0 text-[13px];
   }
 
   .notebook-meta {
-    @apply m-0 text-[11px] text-ink-muted;
+    @apply m-0 text-[12px] text-ink-muted;
   }
 
   .notebook-note-actions {
@@ -1150,7 +1312,7 @@
   }
 
   .notebook-form-toggle-title {
-    @apply text-[14px] font-semibold text-ink;
+    @apply text-[15px] font-semibold text-ink;
   }
 
   .notebook-form-toggle-icon {
@@ -1158,7 +1320,7 @@
   }
 
   .notebook-linked-hint {
-    @apply text-[13px] leading-relaxed;
+    @apply text-[14px] leading-relaxed;
   }
 
   .notebook-form,
@@ -1168,7 +1330,7 @@
 
   .notebook-form label,
   .create-form label {
-    @apply grid gap-1 text-[12px] font-medium text-ink-secondary;
+    @apply grid gap-1 text-[13px] font-medium text-ink-secondary;
   }
 
   .notebook-form-actions {
@@ -1219,7 +1381,7 @@
   }
 
   .profile-username {
-    @apply m-0 text-[12px] text-ink-muted;
+    @apply m-0 text-[13px] text-ink-muted;
   }
 
   .profile-name-row {
@@ -1235,11 +1397,11 @@
   }
 
   .notifications-badge {
-    @apply ml-1 inline-flex min-w-[1rem] items-center justify-center rounded-pill bg-brand px-1.5 text-[0.625rem] font-semibold text-white;
+    @apply ml-1 inline-flex min-w-[1rem] items-center justify-center rounded-pill bg-brand px-1.5 text-[0.625rem] font-semibold text-brand-on;
   }
 
   .notifications-panel {
-    @apply absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-card border border-border bg-white p-2.5 shadow-card;
+    @apply absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-card border border-border bg-surface p-2.5 shadow-card;
   }
 
   .notifications-panel-head {
@@ -1251,11 +1413,11 @@
   }
 
   .notifications-delete-all {
-    @apply text-ink-muted hover:text-red-600;
+    @apply text-ink-muted hover:text-danger-text;
   }
 
   .notifications-empty {
-    @apply py-3 text-center text-[12px];
+    @apply py-3 text-center text-[13px];
   }
 
   .notifications-item-row {
@@ -1279,11 +1441,11 @@
   }
 
   .notifications-item-title {
-    @apply block text-[12px] font-semibold text-ink;
+    @apply block text-[13px] font-semibold text-ink;
   }
 
   .notifications-item-message {
-    @apply mt-0.5 block text-[12px] leading-snug text-ink-secondary;
+    @apply mt-0.5 block text-[13px] leading-snug text-ink-secondary;
   }
 
   .notifications-item.unread .notifications-item-link {
@@ -1304,15 +1466,15 @@
   }
 
   .topbar-profile-menu {
-    @apply absolute right-0 top-full z-50 mt-1 min-w-[11rem] rounded-md border border-border bg-white py-1 shadow-card;
+    @apply absolute right-0 top-full z-50 mt-1 min-w-[11rem] rounded-md border border-border bg-surface py-1 shadow-card;
   }
 
   .topbar-profile-menu-item {
-    @apply block px-3 py-1.5 text-[13px] text-ink-secondary no-underline hover:bg-surface-muted;
+    @apply block px-3 py-1.5 text-[14px] text-ink-secondary no-underline hover:bg-surface-muted;
   }
 
   .favorite-btn {
-    @apply inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white text-ink-muted transition-colors hover:border-border-strong hover:text-ink;
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-ink-muted transition-colors hover:border-border-strong hover:text-ink;
   }
 
   .favorite-btn.is-active {
@@ -1345,7 +1507,7 @@
   }
 
   .mkt-kicker {
-    @apply m-0 text-[12px] font-medium uppercase tracking-[0.14em] text-ink-muted;
+    @apply m-0 text-[13px] font-medium uppercase tracking-[0.14em] text-ink-muted;
   }
 
   .mkt-section {
@@ -1373,7 +1535,7 @@
   }
 
   .mkt-hero {
-    @apply relative overflow-hidden border-b border-border bg-white pt-12 pb-20 md:pt-16 md:pb-28;
+    @apply relative overflow-hidden border-b border-border bg-surface pt-12 pb-20 md:pt-16 md:pb-28;
   }
 
   .mkt-hero-glow {
@@ -1388,7 +1550,7 @@
   }
 
   .mkt-product-frame {
-    @apply overflow-hidden rounded-lg border border-border bg-white shadow-float;
+    @apply overflow-hidden rounded-lg border border-border bg-surface shadow-float;
   }
 
   .mkt-product-chrome {
@@ -1400,7 +1562,7 @@
   }
 
   .mkt-product-url {
-    @apply ml-2 text-[12px] text-ink-faint;
+    @apply ml-2 text-[13px] text-ink-faint;
   }
 
   .mkt-product-body {
@@ -1412,7 +1574,7 @@
   }
 
   .mkt-product-block {
-    @apply rounded-md border border-border bg-white p-3;
+    @apply rounded-md border border-border bg-surface p-3;
   }
 
   .mkt-product-block--active {
@@ -1420,11 +1582,11 @@
   }
 
   .mkt-product-label {
-    @apply block text-[10px] font-medium uppercase tracking-wider text-ink-faint;
+    @apply block text-[12px] font-medium uppercase tracking-wider text-ink-faint;
   }
 
   .mkt-product-value {
-    @apply mt-1 block text-[13px] font-semibold text-ink;
+    @apply mt-1 block text-[14px] font-semibold text-ink;
   }
 
   .mkt-product-timer {
@@ -1444,15 +1606,15 @@
   }
 
   .mkt-product-author {
-    @apply mb-2 block text-[11px] font-semibold uppercase tracking-wide text-ink-muted;
+    @apply mb-2 block text-[12px] font-semibold uppercase tracking-wide text-ink-muted;
   }
 
   .mkt-product-message p {
-    @apply m-0 text-[14px] leading-relaxed text-ink-secondary;
+    @apply m-0 text-[15px] leading-relaxed text-ink-secondary;
   }
 
   .mkt-product-compose {
-    @apply mt-auto rounded-lg border border-dashed border-border px-4 py-3 text-[13px];
+    @apply mt-auto rounded-lg border border-dashed border-border px-4 py-3 text-[14px];
   }
 
   .mkt-hero-title-accent {
@@ -1470,19 +1632,24 @@
 
   /* ——— Landing page ——— */
   .landing-page {
-    @apply w-full bg-white;
+    @apply w-full bg-surface;
   }
 
   .landing-hero {
-    @apply relative overflow-hidden border-b border-border bg-white pt-14 pb-20 md:pt-20 md:pb-28;
+    @apply relative overflow-hidden border-b border-border bg-surface pt-14 pb-16 md:pt-20 md:pb-20;
   }
 
+  /* Deux colonnes à partir de lg : le texte laissait la moitié droite vide. */
   .landing-hero-inner {
-    @apply relative z-[1];
+    @apply relative z-[1] grid items-center gap-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,24rem)] lg:gap-14;
+  }
+
+  .landing-hero-copy {
+    @apply min-w-0;
   }
 
   .landing-hero-title {
-    @apply m-0 mt-4 max-w-3xl text-[2.25rem] font-semibold leading-[1.08] tracking-tighter text-ink md:text-[3.25rem] lg:text-[3.75rem];
+    @apply m-0 mt-4 max-w-3xl text-[2.25rem] font-semibold leading-[1.08] tracking-tighter text-ink md:text-[3rem] lg:text-[3.125rem] xl:text-[3.5rem];
   }
 
   .landing-hero-lead {
@@ -1490,11 +1657,81 @@
   }
 
   .landing-hero-actions {
-    @apply mt-10 flex flex-wrap gap-3;
+    @apply mt-8 flex flex-wrap gap-3;
   }
 
   .landing-hero-note {
-    @apply m-0 mt-8 text-[13px] text-ink-faint;
+    @apply m-0 mt-6 text-[14px] text-ink-faint;
+  }
+
+  /* --- Aperçu de débat dans le hero -------------------------------------- */
+  .hero-preview {
+    @apply hidden lg:block;
+  }
+
+  .hero-preview-card {
+    @apply rounded-lg border border-border bg-surface p-5 shadow-elevated;
+    transform: rotate(-0.6deg);
+  }
+
+  .hero-preview-head {
+    @apply mb-4 flex items-start justify-between gap-3;
+  }
+
+  .hero-preview-topic {
+    @apply text-[15px] font-semibold leading-snug text-ink;
+  }
+
+  .hero-preview-thread {
+    @apply flex flex-col gap-3;
+  }
+
+  .hero-preview-msg {
+    @apply rounded-lg border border-border bg-surface-muted p-3;
+  }
+
+  .hero-preview-msg.stance-for {
+    border-left: 3px solid rgb(var(--stance-for));
+  }
+
+  .hero-preview-msg.stance-against {
+    border-left: 3px solid rgb(var(--stance-against));
+  }
+
+  .hero-preview-msg-head {
+    @apply mb-1.5 flex items-center gap-2;
+  }
+
+  .hero-preview-author {
+    @apply text-[13px] font-medium text-ink-secondary;
+  }
+
+  .hero-preview-msg p {
+    @apply m-0 text-[14px] leading-relaxed text-ink-secondary;
+  }
+
+  .hero-preview-foot {
+    @apply mt-4 flex items-center justify-between border-t border-border pt-3;
+  }
+
+  .hero-preview-turn {
+    @apply flex items-center gap-2 text-[13px] font-medium text-ink-muted;
+  }
+
+  .hero-preview-dot {
+    @apply inline-block h-2 w-2 rounded-full;
+    background: rgb(var(--stance-for));
+    animation: connection-pulse 1.8s ease-in-out infinite;
+  }
+
+  .hero-preview-timer {
+    @apply text-[15px] font-semibold tabular-nums text-ink;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-preview-dot {
+      animation: none;
+    }
   }
 
   .landing-steps {
@@ -1502,7 +1739,7 @@
   }
 
   .landing-step-card {
-    @apply rounded-lg border border-border bg-white p-6 shadow-card transition-shadow duration-200;
+    @apply rounded-lg border border-border bg-surface p-6 shadow-card transition-shadow duration-200;
   }
 
   .landing-step-card:hover {
@@ -1510,7 +1747,7 @@
   }
 
   .landing-step-num {
-    @apply mb-4 flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-[13px] font-semibold text-ink;
+    @apply mb-4 flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-[14px] font-semibold text-ink;
   }
 
   .landing-step-title {
@@ -1518,7 +1755,7 @@
   }
 
   .landing-step-desc {
-    @apply m-0 mt-2 text-[14px] leading-relaxed text-ink-muted;
+    @apply m-0 mt-2 text-[15px] leading-relaxed text-ink-muted;
   }
 
   .landing-why-grid {
@@ -1538,11 +1775,11 @@
   }
 
   .landing-ai-card {
-    @apply rounded-lg border border-border bg-white p-6 shadow-card;
+    @apply rounded-lg border border-border bg-surface p-6 shadow-card;
   }
 
   .landing-ai-badge {
-    @apply inline-block rounded-full bg-brand-accent-light px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-brand-accent;
+    @apply inline-block rounded-full bg-brand-accent-light px-2.5 py-0.5 text-[12px] font-medium uppercase tracking-wide text-brand-accent;
   }
 
   .landing-ai-title {
@@ -1550,7 +1787,7 @@
   }
 
   .landing-ai-desc {
-    @apply m-0 mt-2 text-[14px] leading-relaxed text-ink-muted;
+    @apply m-0 mt-2 text-[15px] leading-relaxed text-ink-muted;
   }
 
   /* --- Cadre du format (remplace les anciens témoignages) --------------- */
@@ -1570,7 +1807,7 @@
 
   /* Carte fantôme : la grille garde sa forme pendant le chargement. */
   .debate-card-skeleton {
-    @apply rounded-lg border border-border bg-white shadow-card;
+    @apply rounded-lg border border-border bg-surface shadow-card;
     height: 190px;
     background-image: linear-gradient(
       100deg,
@@ -1620,7 +1857,7 @@
   }
 
   .auth-password-toggle {
-    @apply absolute right-2 rounded px-2 py-1 text-[12px] font-medium text-ink-muted;
+    @apply absolute right-2 rounded px-2 py-1 text-[13px] font-medium text-ink-muted;
     @apply transition-colors duration-150;
   }
 
@@ -1629,11 +1866,11 @@
   }
 
   .auth-field-hint {
-    @apply mt-1 block text-[12px] font-normal text-ink-muted;
+    @apply mt-1 block text-[13px] font-normal text-ink-muted;
   }
 
   .auth-success {
-    @apply m-0 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[14px] leading-relaxed text-emerald-900;
+    @apply m-0 rounded-lg border border-success-border bg-success-soft px-4 py-3 text-[15px] leading-relaxed text-success-text;
   }
 
   .auth-confirmation {
@@ -1654,7 +1891,7 @@
   }
 
   .status-page-digest {
-    @apply mt-8 text-[12px];
+    @apply mt-8 text-[13px];
   }
 
   /* --- Pages légales ------------------------------------------------------ */
@@ -1679,7 +1916,7 @@
   }
 
   .legal-section p {
-    @apply m-0 mb-3 max-w-3xl text-[14px] leading-relaxed text-ink-secondary last:mb-0;
+    @apply m-0 mb-3 max-w-3xl text-[15px] leading-relaxed text-ink-secondary last:mb-0;
   }
 
   .legal-footer {
@@ -1688,16 +1925,16 @@
 
   /* --- Bandeau de connexion temps réel ----------------------------------- */
   .connection-banner {
-    @apply sticky z-30 flex items-center justify-center gap-2 px-4 py-2 text-[13px] font-medium;
+    @apply sticky z-30 flex items-center justify-center gap-2 px-4 py-2 text-[14px] font-medium;
     top: var(--topbar-h);
   }
 
   .connection-banner--connecting {
-    @apply border-b border-amber-200 bg-amber-50 text-amber-900;
+    @apply border-b border-warning-border bg-warning-soft text-warning-text;
   }
 
   .connection-banner--offline {
-    @apply border-b border-red-200 bg-red-50 text-red-900;
+    @apply border-b border-danger-border bg-danger-soft text-danger-text;
   }
 
   .connection-banner-dot {
@@ -1723,11 +1960,91 @@
 
   /* --- Aides et compteurs de champ --------------------------------------- */
   .field-help {
-    @apply mt-1 block text-[12px] font-normal leading-relaxed text-ink-muted;
+    @apply mt-1 block text-[13px] font-normal leading-relaxed text-ink-muted;
   }
 
   .field-counter-inline {
-    @apply mt-1 block text-right text-[12px] font-normal tabular-nums text-ink-muted;
+    @apply mt-1 block text-right text-[13px] font-normal tabular-nums text-ink-muted;
+  }
+
+  /* --- Camps du débat ----------------------------------------------------
+   * Indigo pour « Pour », orange pour « Contre » : deux hues de poids égal.
+   * `creator_stance` était enregistré à la création puis jamais affiché — rien
+   * ne disait qui défendait quoi, dans un produit dont c'est tout le sujet.
+   */
+  /* --- Bascule de thème --------------------------------------------------- */
+  .theme-toggle {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted;
+    @apply transition-colors duration-150;
+  }
+
+  .theme-toggle:hover {
+    @apply bg-surface-subtle text-ink;
+  }
+
+  .theme-toggle-placeholder {
+    @apply inline-block h-9 w-9;
+  }
+
+  .stance-badge {
+    @apply inline-flex shrink-0 items-center rounded-pill border px-2 py-0.5;
+    @apply text-[12px] font-semibold uppercase tracking-wide;
+  }
+
+  .stance-badge--sm {
+    @apply px-1.5 py-0 text-[11px];
+  }
+
+  .stance-badge.stance-for {
+    @apply border-stance-for-border bg-stance-for-soft text-stance-for;
+  }
+
+  .stance-badge.stance-against {
+    @apply border-stance-against-border bg-stance-against-soft text-stance-against;
+  }
+
+  /* Pastille de camp sur la pilule participant */
+  .participant-pill.stance-for .avatar {
+    @apply bg-stance-for-soft text-stance-for;
+  }
+
+  .participant-pill.stance-against .avatar {
+    @apply bg-stance-against-soft text-stance-against;
+  }
+
+  .participant-pill-name {
+    @apply truncate;
+  }
+
+  /* Filet coloré sur la bulle : le camp se lit d'un coup d'œil dans le fil */
+  .debate-message.stance-for .debate-message-card {
+    border-left: 3px solid rgb(var(--stance-for));
+  }
+
+  .debate-message.stance-against .debate-message-card {
+    border-left: 3px solid rgb(var(--stance-against));
+  }
+
+  .debate-message--right.stance-for .debate-message-card,
+  .debate-message--right.stance-against .debate-message-card {
+    border-left: 0;
+  }
+
+  .debate-message--right.stance-for .debate-message-card {
+    border-right: 3px solid rgb(var(--stance-for));
+  }
+
+  .debate-message--right.stance-against .debate-message-card {
+    border-right: 3px solid rgb(var(--stance-against));
+  }
+
+  /* Bandeau des deux camps, en tête de salle et sur les cartes */
+  .stance-matchup {
+    @apply flex flex-wrap items-center gap-2 text-[13px];
+  }
+
+  .stance-matchup-vs {
+    @apply text-[12px] font-semibold uppercase tracking-wide text-ink-faint;
   }
 
   .landing-rules-grid {
@@ -1735,7 +2052,7 @@
   }
 
   .landing-rule-card {
-    @apply rounded-lg border border-border bg-white p-6 shadow-card;
+    @apply rounded-lg border border-border bg-surface p-6 shadow-card;
     @apply transition-shadow duration-200;
   }
 
@@ -1748,16 +2065,16 @@
   }
 
   .landing-rule-desc {
-    @apply m-0 mt-2 text-[14px] leading-relaxed text-ink-muted;
+    @apply m-0 mt-2 text-[15px] leading-relaxed text-ink-muted;
   }
 
   /* --- Assistant de création ------------------------------------------- */
   .field-counter {
-    @apply -mt-1 text-right text-[12px] tabular-nums;
+    @apply -mt-1 text-right text-[13px] tabular-nums;
   }
 
   .wizard-topic-recall {
-    @apply m-0 mb-4 rounded-lg border border-border bg-surface-muted px-4 py-3 text-[14px] font-medium text-ink;
+    @apply m-0 mb-4 rounded-lg border border-border bg-surface-muted px-4 py-3 text-[15px] font-medium text-ink;
   }
 
   .wizard-fieldset {
@@ -1765,11 +2082,11 @@
   }
 
   .wizard-fieldset legend {
-    @apply mb-1 p-0 text-[14px] font-semibold text-ink;
+    @apply mb-1 p-0 text-[15px] font-semibold text-ink;
   }
 
   .wizard-fieldset-hint {
-    @apply m-0 mb-3 text-[13px] leading-relaxed;
+    @apply m-0 mb-3 text-[14px] leading-relaxed;
   }
 
   .turn-picker {
@@ -1777,7 +2094,7 @@
   }
 
   .turn-card {
-    @apply flex flex-col items-start gap-0.5 rounded-lg border border-border bg-white px-4 py-3 text-left;
+    @apply flex flex-col items-start gap-0.5 rounded-lg border border-border bg-surface px-4 py-3 text-left;
     @apply transition-all duration-200 ease-smooth;
   }
 
@@ -1787,23 +2104,23 @@
   }
 
   .turn-card.is-selected {
-    @apply border-ink bg-ink text-white shadow-card;
+    @apply border-ink bg-ink text-brand-on shadow-card;
   }
 
   .turn-card-label {
-    @apply text-[14px] font-semibold;
+    @apply text-[15px] font-semibold;
   }
 
   .turn-card-hint {
-    @apply text-[12px] text-ink-muted;
+    @apply text-[13px] text-ink-muted;
   }
 
   .turn-card.is-selected .turn-card-hint {
-    @apply text-white/70;
+    @apply text-brand-on/70;
   }
 
   .wizard-mode-hint {
-    @apply m-0 -mt-1 mb-1 text-[13px] leading-relaxed;
+    @apply m-0 -mt-1 mb-1 text-[14px] leading-relaxed;
   }
 
   .landing-cta-band {
@@ -1827,7 +2144,7 @@
   }
 
   .landing-footer {
-    @apply border-t border-border bg-white py-12;
+    @apply border-t border-border bg-surface py-12;
   }
 
   .landing-footer-inner {
@@ -1835,7 +2152,7 @@
   }
 
   .landing-footer-nav {
-    @apply flex flex-wrap gap-x-6 gap-y-2 text-[14px];
+    @apply flex flex-wrap gap-x-6 gap-y-2 text-[15px];
   }
 
   .landing-footer-nav a {
@@ -1843,7 +2160,7 @@
   }
 
   .landing-footer-copy {
-    @apply m-0 text-[13px] md:text-right;
+    @apply m-0 text-[14px] md:text-right;
   }
 
   /* ——— Explore catalogue ——— */
@@ -1885,7 +2202,7 @@
   }
 
   .wizard-suggestions-label {
-    @apply mt-4 text-[13px];
+    @apply mt-4 text-[14px];
   }
 
   .wizard-actions {
@@ -1901,7 +2218,7 @@
   }
 
   .wizard-recap dt {
-    @apply text-[11px] font-medium uppercase tracking-wide text-ink-faint;
+    @apply text-[12px] font-medium uppercase tracking-wide text-ink-faint;
   }
 
   .wizard-recap dd {
@@ -1913,7 +2230,7 @@
   }
 
   .wizard-error {
-    @apply m-0 text-[14px] text-danger-text;
+    @apply m-0 text-[15px] text-danger-text;
   }
 
   .stance-picker {
@@ -1921,15 +2238,33 @@
   }
 
   .stance-card {
-    @apply flex flex-col items-start gap-1 rounded-lg border border-border bg-white p-5 text-left transition-all duration-150;
+    @apply flex flex-col items-start gap-1 rounded-lg border border-border bg-surface p-5 text-left transition-all duration-150;
   }
 
   .stance-card:hover {
     @apply border-border-strong shadow-card;
   }
 
+  /* Le camp choisi prend sa couleur définitive dès l'assistant : l'utilisateur
+     retrouve exactement ce code couleur sur ses messages pendant le débat. */
   .stance-card.is-selected {
     @apply border-brand-accent/40 bg-brand-accent-light/30 ring-2 ring-brand-accent/20;
+  }
+
+  .stance-card.stance-for.is-selected {
+    @apply border-stance-for/50 bg-stance-for-soft ring-2 ring-stance-for/25;
+  }
+
+  .stance-card.stance-against.is-selected {
+    @apply border-stance-against/50 bg-stance-against-soft ring-2 ring-stance-against/25;
+  }
+
+  .stance-card.stance-for.is-selected .stance-card-label {
+    @apply text-stance-for;
+  }
+
+  .stance-card.stance-against.is-selected .stance-card-label {
+    @apply text-stance-against;
   }
 
   .stance-card-label {
@@ -1937,7 +2272,7 @@
   }
 
   .stance-card-hint {
-    @apply text-[13px] text-ink-muted;
+    @apply text-[14px] text-ink-muted;
   }
 
   /* ——— Step indicator ——— */
@@ -1950,7 +2285,7 @@
   }
 
   .step-indicator-item {
-    @apply flex items-center gap-2 text-[13px] text-ink-faint;
+    @apply flex items-center gap-2 text-[14px] text-ink-faint;
   }
 
   .step-indicator-item--current {
@@ -1962,11 +2297,11 @@
   }
 
   .step-indicator-dot {
-    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-surface-muted text-[12px] font-medium;
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-surface-muted text-[13px] font-medium;
   }
 
   .step-indicator-item--current .step-indicator-dot {
-    @apply border-brand-accent bg-brand-accent text-white;
+    @apply border-brand-accent bg-brand-accent text-brand-on;
   }
 
   .step-indicator-item--done .step-indicator-dot {
@@ -1991,7 +2326,7 @@
   }
 
   .ui-empty-desc {
-    @apply m-0 mt-2 max-w-sm text-[14px] text-ink-muted;
+    @apply m-0 mt-2 max-w-sm text-[15px] text-ink-muted;
   }
 
   .ui-empty .btn {
@@ -2062,7 +2397,7 @@
 }
 
 .notebook-success {
-  @apply text-[12px] text-success-text;
+  @apply text-[13px] text-success-text;
 }
 
 .debate-conclusions-section,
@@ -2071,6 +2406,6 @@
 }
 
 .debate-conclusion-item {
-  @apply rounded-md border border-border bg-white p-3.5;
+  @apply rounded-md border border-border bg-surface p-3.5;
 }
 

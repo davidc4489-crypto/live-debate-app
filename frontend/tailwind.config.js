@@ -1,5 +1,16 @@
+/**
+ * Toutes les couleurs pointent vers des variables CSS définies dans
+ * `app/globals.css`, en canaux RGB (`9 9 11`) pour rester compatibles avec les
+ * modificateurs d'opacité Tailwind (`bg-surface/50`).
+ *
+ * Conséquence : basculer en mode sombre ne demande que de redéfinir les
+ * variables, sans toucher aux centaines de classes déjà écrites.
+ */
+const withOpacity = (variable) => `rgb(var(${variable}) / <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: ["class", '[data-theme="dark"]'],
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,41 +19,55 @@ module.exports = {
     extend: {
       colors: {
         surface: {
-          DEFAULT: "#FFFFFF",
-          muted: "#FAFAFA",
-          subtle: "#F4F4F5",
-          elevated: "#FFFFFF",
+          DEFAULT: withOpacity("--surface"),
+          muted: withOpacity("--surface-muted"),
+          subtle: withOpacity("--surface-subtle"),
+          elevated: withOpacity("--surface-elevated"),
         },
         ink: {
-          DEFAULT: "#09090B",
-          secondary: "#3F3F46",
-          muted: "#71717A",
-          faint: "#A1A1AA",
+          DEFAULT: withOpacity("--ink"),
+          secondary: withOpacity("--ink-secondary"),
+          muted: withOpacity("--ink-muted"),
+          faint: withOpacity("--ink-faint"),
         },
         brand: {
-          DEFAULT: "#18181B",
-          hover: "#27272A",
-          light: "#F4F4F5",
-          ring: "#E4E4E7",
-          accent: "#2563EB",
-          "accent-hover": "#1D4ED8",
-          "accent-light": "#EFF6FF",
+          DEFAULT: withOpacity("--brand"),
+          hover: withOpacity("--brand-hover"),
+          light: withOpacity("--brand-light"),
+          ring: withOpacity("--brand-ring"),
+          /** Texte posé sur `bg-brand` : clair en thème clair, sombre en thème sombre. */
+          on: withOpacity("--on-brand"),
+          accent: withOpacity("--accent"),
+          "accent-hover": withOpacity("--accent-hover"),
+          "accent-light": withOpacity("--accent-light"),
         },
         border: {
-          DEFAULT: "rgba(9, 9, 11, 0.08)",
-          strong: "rgba(9, 9, 11, 0.14)",
+          DEFAULT: withOpacity("--border"),
+          strong: withOpacity("--border-strong"),
         },
         success: {
-          soft: "#ECFDF5",
-          text: "#047857",
+          soft: withOpacity("--success-soft"),
+          text: withOpacity("--success-text"),
+          border: withOpacity("--success-border"),
         },
         warning: {
-          soft: "#FFFBEB",
-          text: "#B45309",
+          soft: withOpacity("--warning-soft"),
+          text: withOpacity("--warning-text"),
+          border: withOpacity("--warning-border"),
         },
         danger: {
-          soft: "#FEF2F2",
-          text: "#B91C1C",
+          soft: withOpacity("--danger-soft"),
+          text: withOpacity("--danger-text"),
+          border: withOpacity("--danger-border"),
+        },
+        /** Les deux camps d'un débat — jamais « bon » contre « mauvais ». */
+        stance: {
+          for: withOpacity("--stance-for"),
+          "for-soft": withOpacity("--stance-for-soft"),
+          "for-border": withOpacity("--stance-for-border"),
+          against: withOpacity("--stance-against"),
+          "against-soft": withOpacity("--stance-against-soft"),
+          "against-border": withOpacity("--stance-against-border"),
         },
       },
       fontFamily: {
@@ -67,12 +92,10 @@ module.exports = {
         30: "7.5rem",
       },
       boxShadow: {
-        card: "0 0 0 1px rgba(9, 9, 11, 0.04), 0 1px 2px rgba(9, 9, 11, 0.04)",
-        elevated:
-          "0 0 0 1px rgba(9, 9, 11, 0.06), 0 4px 6px -1px rgba(9, 9, 11, 0.05), 0 12px 24px -8px rgba(9, 9, 11, 0.08)",
-        float:
-          "0 0 0 1px rgba(9, 9, 11, 0.05), 0 8px 30px -12px rgba(9, 9, 11, 0.12)",
-        glow: "0 0 80px -20px rgba(37, 99, 235, 0.15)",
+        card: "var(--shadow-card)",
+        elevated: "var(--shadow-elevated)",
+        float: "var(--shadow-float)",
+        glow: "var(--shadow-glow)",
       },
       borderRadius: {
         card: "12px",

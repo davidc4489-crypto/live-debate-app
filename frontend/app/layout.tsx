@@ -6,6 +6,7 @@ import { Topbar } from "../components/Topbar";
 import { ConnectionBanner } from "../components/ConnectionBanner";
 import { APP_NAME, APP_TAGLINE } from "../lib/brand";
 import { getSiteUrl } from "../lib/site-url";
+import { THEME_INIT_SCRIPT } from "../lib/theme";
 
 const DESCRIPTION =
   `${APP_NAME} : des débats structurés entre deux personnes. Un sujet, deux camps, ` +
@@ -51,7 +52,12 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fr" className={inter.variable}>
+    <html lang="fr" className={inter.variable} suppressHydrationWarning>
+      <head>
+        {/* Applique le thème enregistré avant le premier rendu : sans ce
+            script, la page flashe en clair avant de basculer en sombre. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="font-sans">
         <Topbar />
         <ConnectionBanner />

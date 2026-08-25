@@ -11,7 +11,6 @@ import { MAX_TITLE_LENGTH, MIN_TITLE_LENGTH } from "@/lib/constants";
 import { DebateStance, STANCE_LABELS, WIZARD_STEPS } from "@/lib/debate-wizard";
 import { getSocket } from "@/lib/socket";
 import { useAuthSession } from "@/lib/useAuthSession";
-import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 
 const SUGGESTED_TOPICS = [
   "Faut-il rendre le vote obligatoire ?",
@@ -148,7 +147,6 @@ export function DebateWizardClient() {
 
   return (
     <>
-      <OnboardingModal />
       <div className="wizard-page">
         <Link href="/" className="btn btn-ghost room-back">
           Retour à l&apos;accueil
@@ -215,7 +213,7 @@ export function DebateWizardClient() {
                   <button
                     key={s}
                     type="button"
-                    className={`stance-card ${stance === s ? "is-selected" : ""}`}
+                    className={`stance-card stance-${s} ${stance === s ? "is-selected" : ""}`}
                     onClick={() => setStance(s)}
                     aria-pressed={stance === s}
                   >

@@ -24,9 +24,23 @@ export type DebateStatus =
   | "cancelled"
   | "paused";
 
+export type DebateStance = "for" | "against";
+
 export interface DebateParticipant {
   userId: string | null;
   displayName: string;
+  /** Camp défendu ; `null` pour les débats créés sans position déclarée. */
+  stance?: DebateStance | null;
+}
+
+export const STANCE_LABEL: Record<DebateStance, string> = {
+  for: "Pour",
+  against: "Contre",
+};
+
+/** Suffixe de classe CSS : `stance-for` / `stance-against`. */
+export function stanceClass(stance: DebateStance | null | undefined): string {
+  return stance ? `stance-${stance}` : "";
 }
 
 export interface DebateListItem {

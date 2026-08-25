@@ -7,9 +7,13 @@ export type DebateStatus =
   | "cancelled"
   | "paused";
 
+export type DebateStance = "for" | "against";
+
 export interface DebateParticipantDto {
   userId: string | null;
   displayName: string;
+  /** Camp défendu ; `null` si le débat n'en déclare pas (créé avant 00013). */
+  stance: DebateStance | null;
 }
 
 export interface DebateMessageDto {

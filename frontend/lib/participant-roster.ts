@@ -6,16 +6,35 @@ const WAITING: DebateParticipant = {
   displayName: "En attente d'un participant",
 };
 
+/**
+ * Roster temps réel → participants affichables.
+ *
+ * `known` (les participants issus de la base) sert à conserver le camp défendu :
+ * la room Socket.IO ne transporte que l'identité et le nom, sans cette reprise
+ * le badge Pour/Contre disparaissait à la première mise à jour live.
+ */
 export function rosterToParticipants(
   roster: RoomParticipantSlot[] | undefined,
+  known?: [DebateParticipant, DebateParticipant],
 ): [DebateParticipant, DebateParticipant] | null {
   if (!roster?.length) return null;
 
-  const slots: [DebateParticipant, DebateParticipant] = [WAITING, WAITING];
+  const stanceAt = (index: 0 | 1, userId: string | null): DebateParticipant["stance"] => {
+    const byId = known?.find((p) => p.userId && p.userId === userId)?.stance;
+    return byId ?? known?.[index]?.stance ?? null;
+  };
+
+  const slots: [DebateParticipant, DebateParticipant] = [
+    { ...WAITING, stance: known?.[0]?.stance ?? null },
+    { ...WAITING, stance: known?.[1]?.stance ?? null },
+  ];
   for (const slot of roster) {
-    const participant = { userId: slot.userId, displayName: slot.displayName };
-    if (slot.position === 1) slots[0] = participant;
-    if (slot.position === 2) slots[1] = participant;
+    if (slot.position === 1) {
+      slots[0] = { userId: slot.userId, displayName: slot.displayName, stance: stanceAt(0, slot.userId) };
+    }
+    if (slot.position === 2) {
+      slots[1] = { userId: slot.userId, displayName: slot.displayName, stance: stanceAt(1, slot.userId) };
+    }
   }
   return slots;
 }
@@ -24,7 +43,7 @@ export function applyLiveRoster(
   debate: DebateListItem,
   roster: RoomParticipantSlot[] | undefined,
 ): DebateListItem {
-  const participants = rosterToParticipants(roster);
+  const participants = rosterToParticipants(roster, debate.participants);
   if (!participants) return debate;
   return { ...debate, participants };
 }

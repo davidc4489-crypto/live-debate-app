@@ -216,6 +216,7 @@ function NotebookIcon() {
   );
 }
 
+/** Boussole — l'icône précédente était une horloge, sans rapport avec « Mission ». */
 function MissionIcon() {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -226,7 +227,7 @@ function MissionIcon() {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        d="M12 8v4l3 2"
+        d="M15.5 8.5l-2 5-5 2 2-5z"
       />
     </svg>
   );
