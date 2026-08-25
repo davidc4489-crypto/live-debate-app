@@ -1,5 +1,8 @@
 "use client";
 
+/** Aligné sur `UpdateProfileDto` côté backend. */
+const BIO_MAX_LENGTH = 500;
+
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { Interest } from "@/lib/profile";
@@ -110,7 +113,11 @@ export function ProfileEditClient() {
   }
 
   if (authLoading || loading) {
-    return <div className="empty-state">Chargement du profil…</div>;
+    return (
+      <p className="muted" role="status">
+        Chargement de votre profil…
+      </p>
+    );
   }
 
   return (
@@ -126,9 +133,13 @@ export function ProfileEditClient() {
           <input
             value={username}
             onChange={(event) => setUsername(event.target.value)}
-            placeholder="ex: debateur42"
+            placeholder="ex : debateur42"
             maxLength={30}
           />
+          <span className="field-help">
+            C&apos;est le nom affiché à côté de vos messages dans les débats. À défaut, votre
+            prénom et votre nom seront utilisés.
+          </span>
         </label>
 
         <div className="profile-edit-row">
@@ -143,13 +154,18 @@ export function ProfileEditClient() {
         </div>
 
         <label className="field">
-          <span>URL de l&apos;avatar</span>
+          <span>Photo de profil (optionnel)</span>
           <input
             value={avatarUrl}
             onChange={(event) => setAvatarUrl(event.target.value)}
-            placeholder="https://…"
+            placeholder="https://exemple.com/ma-photo.jpg"
             type="url"
+            maxLength={500}
           />
+          <span className="field-help">
+            Collez le lien direct vers une image déjà en ligne. Sans photo, vos initiales
+            s&apos;affichent à la place.
+          </span>
         </label>
 
         <label className="field">
@@ -158,9 +174,12 @@ export function ProfileEditClient() {
             value={bio}
             onChange={(event) => setBio(event.target.value)}
             rows={4}
-            maxLength={500}
+            maxLength={BIO_MAX_LENGTH}
             placeholder="Présentez-vous en quelques lignes…"
           />
+          <span className="field-counter-inline" aria-live="polite">
+            {bio.length}/{BIO_MAX_LENGTH}
+          </span>
         </label>
 
         <label className="field">
@@ -173,6 +192,7 @@ export function ProfileEditClient() {
             max={120}
             placeholder="18"
           />
+          <span className="field-help">Jamais affiché publiquement sans votre accord.</span>
         </label>
 
         <fieldset className="field">

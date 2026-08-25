@@ -1,10 +1,18 @@
-# Live Debate App (MVP)
+# Argumen
 
-MVP de débat en temps réel pour petits groupes (environ 10 utilisateurs), avec :
+Plateforme de **débat structuré entre deux personnes** : un sujet, deux camps,
+des tours de parole et un message chacun. Les spectateurs suivent l'échange
+sans pouvoir l'interrompre.
 
-- `backend/` en `NestJS + Socket.IO`
+L'IA n'est **jamais un interlocuteur** — on ne débat pas contre elle. Elle
+modère les messages avant publication, calcule un climat de débat et renvoie un
+retour privé à l'auteur. Voir « Modération & IA » plus bas.
+
+- `backend/` en `NestJS + Socket.IO` — état des salles en mémoire, persistance
+  Supabase (messages écrits au fil de l'eau)
 - `frontend/` en `Next.js App Router + Socket.IO client`
-- stockage en mémoire (pas de base de données)
+- `moderation-service/` en `FastAPI` — modèles Hugging Face auto-hébergés
+- `supabase/migrations/` — schéma PostgreSQL
 
 ## Fonctionnalités
 
