@@ -10,6 +10,7 @@
     "start:prod": "node dist/main.js",
     "seed": "node scripts/seed-debates.mjs",
     "migrate:profiles": "node scripts/apply-profile-migration.mjs",
+    "migrate": "node scripts/apply-migration.mjs",
     "test:moderation": "node scripts/test-moderation.mjs",
     "test:moderation:live": "node scripts/test-moderation.mjs --live",
     "test:rooms": "npm run build && node scripts/test-rooms.mjs",

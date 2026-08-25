@@ -104,6 +104,19 @@ sont également nécessaires au déroulement complet d'un débat. Le backend
 fonctionne en mode dégradé si `00015` manque : la reprise retombe alors sur
 l'ancienne règle (seul le participant ayant mis en pause peut la demander).
 
+**Appliquer une migration en ligne de commande** — renseignez `DATABASE_URL`
+dans `backend/.env` (Supabase → Project Settings → Database → Connection string
+→ URI, elle contient le mot de passe de la base, pas la clé service role) :
+
+```bash
+cd backend
+npm run migrate -- --list                              # migrations disponibles
+npm run migrate 00015_resume_requester_and_title_guard # en applique une
+```
+
+La migration est jouée dans une transaction (rien n'est appliqué en cas
+d'erreur) et les fichiers du projet sont rejouables sans effet de bord.
+
 **Profils / intérêts** — si vous voyez `Could not find the table 'public.interests'` :
 
 1. [Supabase Dashboard](https://supabase.com/dashboard) → votre projet → **SQL Editor** → **New query**
