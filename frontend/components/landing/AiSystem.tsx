@@ -1,19 +1,19 @@
 import { AI_ROLES } from "@/lib/brand";
 
-const ROLES = [AI_ROLES.opponent, AI_ROLES.judge, AI_ROLES.coach];
+const ROLES = [AI_ROLES.moderation, AI_ROLES.quality, AI_ROLES.coach];
 
 export function AiSystem() {
   return (
     <section className="mkt-section" id="ai" aria-labelledby="ai-title">
       <div className="mkt-container">
         <div className="mkt-section-intro mkt-section-intro--center">
-          <p className="mkt-kicker">Système IA</p>
+          <p className="mkt-kicker">Le rôle de l&apos;IA</p>
           <h2 id="ai-title" className="mkt-section-title">
-            Trois rôles, pas un chatbot générique
+            Elle sécurise le débat. Elle ne le remplace pas.
           </h2>
           <p className="mkt-section-lead mkt-section-lead--center">
-            L&apos;intelligence artificielle intervient à des moments précis du parcours — jamais
-            pour remplacer votre pensée.
+            Sur Argumen, on débat entre humains — toujours. L&apos;IA n&apos;écrit aucun message,
+            ne prend jamais parti et ne décide pas qui a raison.
           </p>
         </div>
         <ul className="landing-ai-grid">
@@ -25,10 +25,6 @@ export function AiSystem() {
             </li>
           ))}
         </ul>
-        <p className="landing-ai-footnote muted">
-          L&apos;adversaire IA est en déploiement progressif. La démo vous montre l&apos;expérience
-          cible ; les débats humains sont disponibles dès maintenant.
-        </p>
       </div>
     </section>
   );

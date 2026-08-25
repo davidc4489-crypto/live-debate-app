@@ -22,8 +22,4 @@ export class CreateProposedDebateDto {
   @IsOptional()
   @IsIn(["for", "against"])
   creatorStance?: "for" | "against";
-
-  @IsOptional()
-  @IsIn(["human", "ai"])
-  opponentMode?: "human" | "ai";
 }

@@ -1562,21 +1562,9 @@
     @apply mt-auto rounded-lg border border-dashed border-border px-4 py-3 text-[13px];
   }
 
-  .mkt-stats-row {
-    @apply m-0 grid list-none grid-cols-1 gap-8 p-0 text-center sm:grid-cols-3;
-  }
 
-  .mkt-stat {
-    @apply flex flex-col gap-2;
-  }
 
-  .mkt-stat-number {
-    @apply text-[2rem] font-semibold tracking-tighter text-ink md:text-[2.5rem];
-  }
 
-  .mkt-stat-label {
-    @apply text-[14px] text-ink-muted;
-  }
 
   .mkt-hero-title-accent {
     @apply text-brand-accent;
@@ -1621,7 +1609,7 @@
   }
 
   .landing-steps {
-    @apply m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-4;
+    @apply m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5;
   }
 
   .landing-step-card {
@@ -1676,24 +1664,86 @@
     @apply m-0 mt-2 text-[14px] leading-relaxed text-ink-muted;
   }
 
-  .landing-ai-footnote {
-    @apply mt-10 text-center text-[14px];
+
+
+
+
+
+  /* --- Cadre du format (remplace les anciens témoignages) --------------- */
+  .landing-rules-grid {
+    @apply m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3;
   }
 
-  .landing-quotes {
-    @apply mt-14 grid gap-4 md:grid-cols-3;
+  .landing-rule-card {
+    @apply rounded-lg border border-border bg-white p-6 shadow-card;
+    @apply transition-shadow duration-200;
   }
 
-  .landing-quote-card {
-    @apply m-0 p-6;
+  .landing-rule-card:hover {
+    @apply shadow-elevated;
   }
 
-  .landing-quote-card blockquote {
-    @apply m-0 text-[14px] leading-relaxed text-ink-secondary;
+  .landing-rule-title {
+    @apply m-0 text-[15px] font-semibold text-ink;
   }
 
-  .landing-quote-card figcaption {
-    @apply mt-4 text-[13px] font-medium text-ink-muted;
+  .landing-rule-desc {
+    @apply m-0 mt-2 text-[14px] leading-relaxed text-ink-muted;
+  }
+
+  /* --- Assistant de création ------------------------------------------- */
+  .field-counter {
+    @apply -mt-1 text-right text-[12px] tabular-nums;
+  }
+
+  .wizard-topic-recall {
+    @apply m-0 mb-4 rounded-lg border border-border bg-surface-muted px-4 py-3 text-[14px] font-medium text-ink;
+  }
+
+  .wizard-fieldset {
+    @apply m-0 mt-6 border-0 p-0;
+  }
+
+  .wizard-fieldset legend {
+    @apply mb-1 p-0 text-[14px] font-semibold text-ink;
+  }
+
+  .wizard-fieldset-hint {
+    @apply m-0 mb-3 text-[13px] leading-relaxed;
+  }
+
+  .turn-picker {
+    @apply grid gap-3 sm:grid-cols-3;
+  }
+
+  .turn-card {
+    @apply flex flex-col items-start gap-0.5 rounded-lg border border-border bg-white px-4 py-3 text-left;
+    @apply transition-all duration-200 ease-smooth;
+  }
+
+  .turn-card:hover {
+    @apply border-border-strong;
+    transform: translateY(-1px);
+  }
+
+  .turn-card.is-selected {
+    @apply border-ink bg-ink text-white shadow-card;
+  }
+
+  .turn-card-label {
+    @apply text-[14px] font-semibold;
+  }
+
+  .turn-card-hint {
+    @apply text-[12px] text-ink-muted;
+  }
+
+  .turn-card.is-selected .turn-card-hint {
+    @apply text-white/70;
+  }
+
+  .wizard-mode-hint {
+    @apply m-0 -mt-1 mb-1 text-[13px] leading-relaxed;
   }
 
   .landing-cta-band {

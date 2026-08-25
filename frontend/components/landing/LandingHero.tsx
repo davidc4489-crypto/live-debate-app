@@ -18,14 +18,14 @@ export function LandingHero() {
         <p className="landing-hero-lead">{PRODUCT_POSITIONING}</p>
         <div className="landing-hero-actions">
           <Link href="/start" className="btn btn-primary btn-lg landing-cta-primary">
-            Commencer un débat
+            Lancer un débat
           </Link>
-          <Link href="/demo" className="btn btn-secondary btn-lg">
-            Essayer la démo
+          <Link href="/explore" className="btn btn-secondary btn-lg">
+            Explorer les débats
           </Link>
         </div>
         <p className="landing-hero-note">
-          Débats structurés · Tours de parole · Humain ou IA · Pas un simple chatbot
+          Deux participants · Tours de parole · Un message chacun · Modération en direct
         </p>
       </div>
     </section>

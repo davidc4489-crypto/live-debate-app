@@ -1,19 +1,19 @@
 export type DebateStance = "for" | "against";
-export type OpponentMode = "human" | "ai";
 
 export const STANCE_LABELS: Record<DebateStance, string> = {
   for: "Pour",
   against: "Contre",
 };
 
-export const OPPONENT_LABELS: Record<OpponentMode, string> = {
-  human: "Un autre utilisateur",
-  ai: "L'IA (adversaire)",
-};
-
+/**
+ * Étapes du lancement d'un débat.
+ *
+ * L'étape « Adversaire » (humain ou IA) a été retirée : Argumen est une
+ * plateforme de débat entre deux personnes. L'IA n'intervient que pour la
+ * modération et les indicateurs de qualité, jamais comme interlocuteur.
+ */
 export const WIZARD_STEPS = [
   { id: "topic", label: "Sujet" },
   { id: "stance", label: "Position" },
-  { id: "opponent", label: "Adversaire" },
   { id: "launch", label: "Lancement" },
 ] as const;

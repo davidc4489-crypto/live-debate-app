@@ -9,14 +9,14 @@ export function WhyProduct() {
           </h2>
           <p className="mkt-section-lead">
             Les réseaux sociaux récompensent la vitesse et le clash. Argumen impose le rythme
-            inverse : écouter, structurer, répondre — avec un adversaire réel ou une IA qui
-            contre-argumente sans caricature.
+            inverse : un sujet, deux personnes, un message chacun à tour de rôle. Le temps de
+            construire un argument, et celui de le lire.
           </p>
           <ul className="landing-why-list">
             <li>Pas de fil algorithmique, pas de course aux likes</li>
-            <li>Tours de parole pour éviter les interruptions</li>
-            <li>Modération pour garder le respect du débat</li>
-            <li>Trace écrite : conclusions et progression</li>
+            <li>Tours de parole : impossible de couper son interlocuteur</li>
+            <li>Modération en direct pour garder le respect de l&apos;échange</li>
+            <li>Trace écrite : conclusions de chaque camp, débats relisibles</li>
           </ul>
         </div>
         <blockquote className="landing-quote card">

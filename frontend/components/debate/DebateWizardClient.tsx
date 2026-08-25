@@ -2,27 +2,29 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { AuthModal, AuthModalMode } from "@/components/AuthModal";
 import { StepIndicator } from "@/components/ui/StepIndicator";
 import { createProposedDebate } from "@/lib/debates-api";
 import { getStoredAuth } from "@/lib/auth";
-import {
-  DebateStance,
-  OPPONENT_LABELS,
-  OpponentMode,
-  STANCE_LABELS,
-  WIZARD_STEPS,
-} from "@/lib/debate-wizard";
+import { MAX_TITLE_LENGTH, MIN_TITLE_LENGTH } from "@/lib/constants";
+import { DebateStance, STANCE_LABELS, WIZARD_STEPS } from "@/lib/debate-wizard";
 import { getSocket } from "@/lib/socket";
 import { useAuthSession } from "@/lib/useAuthSession";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 
 const SUGGESTED_TOPICS = [
-  "L'IA doit-elle être strictement régulée ?",
+  "Faut-il rendre le vote obligatoire ?",
   "Le télétravail est-il l'avenir du travail ?",
   "Faut-il interdire les réseaux sociaux aux mineurs ?",
+  "La semaine de quatre jours doit-elle devenir la norme ?",
 ];
+
+const TURN_OPTIONS = [
+  { value: 180, label: "3 minutes", hint: "Rythme soutenu" },
+  { value: 300, label: "5 minutes", hint: "Équilibré" },
+  { value: 600, label: "10 minutes", hint: "Arguments longs" },
+] as const;
 
 export function DebateWizardClient() {
   const router = useRouter();
@@ -30,35 +32,41 @@ export function DebateWizardClient() {
   const [step, setStep] = useState(0);
   const [title, setTitle] = useState("");
   const [stance, setStance] = useState<DebateStance | null>(null);
-  const [opponentMode, setOpponentMode] = useState<OpponentMode | null>(null);
-  const [turnDuration, setTurnDuration] = useState<180 | 300 | 600>(180);
+  const [turnDuration, setTurnDuration] = useState<180 | 300 | 600>(300);
   const [loading, setLoading] = useState(false);
+  const [pendingMode, setPendingMode] = useState<"live" | "proposed" | null>(null);
   const [error, setError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthModalMode>("signin");
 
+  const trimmedTitle = title.trim();
+
   function requireAuth(): boolean {
     if (user) return true;
+    setAuthMode("signin");
     setAuthOpen(true);
     return false;
   }
 
+  function validateTitle(): string | null {
+    if (!trimmedTitle) return "Choisissez ou saisissez un sujet.";
+    if (trimmedTitle.length < MIN_TITLE_LENGTH) {
+      return `Le sujet doit contenir au moins ${MIN_TITLE_LENGTH} caractères.`;
+    }
+    return null;
+  }
+
   function next() {
     setError("");
-    if (step === 0 && !title.trim()) {
-      setError("Choisissez ou saisissez un sujet.");
-      return;
+    if (step === 0) {
+      const invalid = validateTitle();
+      if (invalid) {
+        setError(invalid);
+        return;
+      }
     }
     if (step === 1 && !stance) {
       setError("Choisissez votre position.");
-      return;
-    }
-    if (step === 2 && !opponentMode) {
-      setError("Choisissez un type d'adversaire.");
-      return;
-    }
-    if (step === 2 && opponentMode === "ai") {
-      router.push("/demo");
       return;
     }
     setStep((s) => Math.min(s + 1, WIZARD_STEPS.length - 1));
@@ -69,7 +77,7 @@ export function DebateWizardClient() {
     setStep((s) => Math.max(0, s - 1));
   }
 
-  async function launchHuman() {
+  async function launchLive() {
     if (!requireAuth()) return;
 
     const accessToken = getStoredAuth()?.session?.accessToken;
@@ -79,57 +87,62 @@ export function DebateWizardClient() {
     }
 
     setLoading(true);
+    setPendingMode("live");
     setError("");
 
     try {
-      if (opponentMode === "human") {
-        const socket = getSocket();
-        if (!socket.connected) socket.connect();
+      const socket = getSocket();
+      if (!socket.connected) socket.connect();
 
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error("Délai dépassé.")), 8000);
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(
+          () => reject(new Error("Le serveur ne répond pas. Réessayez dans un instant.")),
+          10_000,
+        );
 
-          const onCreated = (room: { id: string }) => {
-            clearTimeout(timeout);
-            socket.off("roomCreated", onCreated);
-            socket.off("errorMessage", onError);
-            resolve();
-            router.push(`/room/${room.id}`);
-          };
-          const onError = (payload: { message: string }) => {
-            clearTimeout(timeout);
-            socket.off("roomCreated", onCreated);
-            socket.off("errorMessage", onError);
-            reject(new Error(payload.message));
-          };
+        const cleanup = () => {
+          clearTimeout(timeout);
+          socket.off("roomCreated", onCreated);
+          socket.off("errorMessage", onError);
+        };
+        const onCreated = (room: { id: string }) => {
+          cleanup();
+          resolve();
+          router.push(`/room/${room.id}`);
+        };
+        const onError = (payload: { message: string }) => {
+          cleanup();
+          reject(new Error(payload.message));
+        };
 
-          socket.on("roomCreated", onCreated);
-          socket.on("errorMessage", onError);
-          socket.emit("createRoom", {
-            title: title.trim(),
-            turnDuration,
-            accessToken,
-            creatorStance: stance,
-            opponentMode: "human",
-          });
+        socket.on("roomCreated", onCreated);
+        socket.on("errorMessage", onError);
+        socket.emit("createRoom", {
+          title: trimmedTitle,
+          turnDuration,
+          accessToken,
+          creatorStance: stance,
         });
-      }
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de lancer le débat.");
       setLoading(false);
+      setPendingMode(null);
     }
   }
 
   async function launchProposed() {
     if (!requireAuth() || !stance) return;
     setLoading(true);
+    setPendingMode("proposed");
     setError("");
     try {
-      const created = await createProposedDebate(title.trim(), turnDuration, stance, "human");
+      const created = await createProposedDebate(trimmedTitle, turnDuration, stance);
       router.push(`/room/${created.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur.");
+      setError(err instanceof Error ? err.message : "Impossible de proposer le sujet.");
       setLoading(false);
+      setPendingMode(null);
     }
   }
 
@@ -138,7 +151,7 @@ export function DebateWizardClient() {
       <OnboardingModal />
       <div className="wizard-page">
         <Link href="/" className="btn btn-ghost room-back">
-          Retour
+          Retour à l&apos;accueil
         </Link>
 
         <div className="wizard-shell card">
@@ -147,7 +160,10 @@ export function DebateWizardClient() {
           {step === 0 ? (
             <div className="wizard-panel">
               <h1>Quel sujet voulez-vous débattre ?</h1>
-              <p className="muted">Une question claire, ouverte, avec deux camps possibles.</p>
+              <p className="muted">
+                Une question fermée, avec deux camps défendables. « Faut-il… ? » plutôt que
+                « Que penser de… ? ».
+              </p>
               <form
                 className="create-form"
                 onSubmit={(e) => {
@@ -159,16 +175,21 @@ export function DebateWizardClient() {
                 <input
                   id="wizard-title"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  maxLength={MAX_TITLE_LENGTH}
+                  onChange={(e) => setTitle(e.target.value.slice(0, MAX_TITLE_LENGTH))}
                   placeholder="Ex : Faut-il rendre le vote obligatoire ?"
+                  autoFocus
                 />
-                <p className="muted wizard-suggestions-label">Suggestions</p>
+                <p className="muted field-counter" aria-live="polite">
+                  {title.length}/{MAX_TITLE_LENGTH} caractères
+                </p>
+                <p className="muted wizard-suggestions-label">Ou partez d&apos;une suggestion</p>
                 <div className="chips-wrap">
                   {SUGGESTED_TOPICS.map((t) => (
                     <button
                       key={t}
                       type="button"
-                      className="chip"
+                      className={`chip${trimmedTitle === t ? " active" : ""}`}
                       onClick={() => setTitle(t)}
                     >
                       {t}
@@ -184,8 +205,11 @@ export function DebateWizardClient() {
 
           {step === 1 ? (
             <div className="wizard-panel">
-              <h1>Quelle est votre position ?</h1>
-              <p className="muted">Vous défendrez ce camp pendant tout le débat.</p>
+              <h1>Quelle position défendez-vous ?</h1>
+              <p className="muted">
+                Vous tiendrez ce camp pendant tout le débat. Votre adversaire prendra l&apos;autre.
+              </p>
+              <p className="wizard-topic-recall">{trimmedTitle}</p>
               <div className="stance-picker">
                 {(["for", "against"] as const).map((s) => (
                   <button
@@ -193,6 +217,7 @@ export function DebateWizardClient() {
                     type="button"
                     className={`stance-card ${stance === s ? "is-selected" : ""}`}
                     onClick={() => setStance(s)}
+                    aria-pressed={stance === s}
                   >
                     <span className="stance-card-label">{STANCE_LABELS[s]}</span>
                     <span className="stance-card-hint">
@@ -214,90 +239,82 @@ export function DebateWizardClient() {
 
           {step === 2 ? (
             <div className="wizard-panel">
-              <h1>Contre qui débattez-vous ?</h1>
-              <p className="muted">Humain en direct ou entraînement IA (démo disponible).</p>
-              <div className="stance-picker">
-                {(["human", "ai"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={`stance-card ${opponentMode === mode ? "is-selected" : ""}`}
-                    onClick={() => setOpponentMode(mode)}
-                  >
-                    <span className="stance-card-label">{OPPONENT_LABELS[mode]}</span>
-                    <span className="stance-card-hint">
-                      {mode === "human"
-                        ? "Un participant rejoint votre salle"
-                        : "AI Opponent — voir la démo interactive"}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="wizard-actions">
-                <button type="button" className="btn btn-ghost" onClick={back}>
-                  Retour
-                </button>
-                <button type="button" className="btn btn-primary" onClick={next}>
-                  Continuer
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {step === 3 && opponentMode === "human" ? (
-            <div className="wizard-panel">
               <h1>Lancer le débat</h1>
               <dl className="wizard-recap">
                 <div>
                   <dt>Sujet</dt>
-                  <dd>{title}</dd>
+                  <dd>{trimmedTitle}</dd>
                 </div>
                 <div>
-                  <dt>Position</dt>
+                  <dt>Votre position</dt>
                   <dd>{stance ? STANCE_LABELS[stance] : "—"}</dd>
                 </div>
                 <div>
                   <dt>Adversaire</dt>
-                  <dd>Utilisateur humain</dd>
+                  <dd>Un autre participant</dd>
                 </div>
               </dl>
-              <label htmlFor="turn-dur">Durée par tour</label>
-              <select
-                id="turn-dur"
-                value={turnDuration}
-                onChange={(e) => setTurnDuration(Number(e.target.value) as 180 | 300 | 600)}
-              >
-                <option value={180}>3 minutes</option>
-                <option value={300}>5 minutes</option>
-                <option value={600}>10 minutes</option>
-              </select>
+
+              <fieldset className="wizard-fieldset">
+                <legend>Délai pour répondre à son tour</legend>
+                <p className="muted wizard-fieldset-hint">
+                  C&apos;est un maximum, pas une durée à consommer : envoyer son message passe
+                  la parole immédiatement.
+                </p>
+                <div className="turn-picker">
+                  {TURN_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`turn-card${turnDuration === option.value ? " is-selected" : ""}`}
+                      onClick={() => setTurnDuration(option.value)}
+                      aria-pressed={turnDuration === option.value}
+                    >
+                      <span className="turn-card-label">{option.label}</span>
+                      <span className="turn-card-hint">{option.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
               <div className="wizard-launch-modes">
                 <button
                   type="button"
                   className="btn btn-primary w-full"
                   disabled={loading || authLoading}
-                  onClick={() => void launchHuman()}
+                  onClick={() => void launchLive()}
                 >
-                  {loading ? "Ouverture…" : "Ouvrir la salle maintenant"}
+                  {pendingMode === "live" ? "Ouverture…" : "Ouvrir la salle maintenant"}
                 </button>
+                <p className="muted wizard-mode-hint">
+                  La salle reste ouverte une heure en attente d&apos;un adversaire, puis se ferme.
+                </p>
                 <button
                   type="button"
                   className="btn btn-secondary w-full"
-                  disabled={loading}
+                  disabled={loading || authLoading}
                   onClick={() => void launchProposed()}
                 >
-                  Proposer le sujet (planifier)
+                  {pendingMode === "proposed" ? "Envoi…" : "Proposer le sujet pour plus tard"}
                 </button>
+                <p className="muted wizard-mode-hint">
+                  Le sujet apparaît dans « Débats proposés ». Quand quelqu&apos;un se manifeste,
+                  vous convenez d&apos;une date ensemble.
+                </p>
               </div>
               <div className="wizard-actions">
-                <button type="button" className="btn btn-ghost" onClick={back}>
+                <button type="button" className="btn btn-ghost" onClick={back} disabled={loading}>
                   Retour
                 </button>
               </div>
             </div>
           ) : null}
 
-          {error ? <p className="wizard-error muted">{error}</p> : null}
+          {error ? (
+            <p className="wizard-error" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
       </div>
 

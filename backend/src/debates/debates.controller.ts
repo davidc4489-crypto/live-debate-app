@@ -54,7 +54,6 @@ export class DebatesController {
       body.title,
       body.turnDuration ?? 180,
       body.creatorStance,
-      body.opponentMode ?? "human",
     );
   }
 

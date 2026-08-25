@@ -5,6 +5,14 @@ import { ModerationService } from "../moderation/moderation.service";
 import { SupabaseService } from "../supabase/supabase.service";
 import { DebateLifecycleService } from "./debate-lifecycle.service";
 
+/**
+ * Argumen est une plateforme de débat entre deux personnes : `opponent_mode`
+ * vaut toujours "human". La colonne (migration 00013) est conservée pour la
+ * compatibilité des lignes existantes, mais l'API n'accepte plus d'autre
+ * valeur — l'IA ne sert qu'à la modération et aux indicateurs de qualité.
+ */
+export const OPPONENT_MODE = "human" as const;
+
 /** Thèmes proposés au classifieur zero-shot (alignés sur `frontend/lib/debate.ts`). */
 const DEBATE_THEMES = [
   "Politique",
@@ -36,7 +44,7 @@ export class DebateCreationService {
     roomId: string,
     title: string,
     turnDuration: number,
-    options?: { creatorStance?: "for" | "against"; opponentMode?: "human" | "ai" },
+    options?: { creatorStance?: "for" | "against" },
   ): Promise<void> {
     const supabase = this.supabaseService.getServiceClient();
     const categoryId = await this.getDefaultCategoryId();
@@ -54,9 +62,8 @@ export class DebateCreationService {
     if (options?.creatorStance) {
       baseRow.creator_stance = options.creatorStance;
     }
-    if (options?.opponentMode) {
-      baseRow.opponent_mode = options.opponentMode;
-    }
+    // Toujours "human" : voir OPPONENT_MODE.
+    baseRow.opponent_mode = OPPONENT_MODE;
 
     const withExpiry = {
       ...baseRow,

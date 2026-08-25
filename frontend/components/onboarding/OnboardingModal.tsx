@@ -31,15 +31,15 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const slides = [
     {
       title: `Bienvenue sur ${APP_NAME}`,
-      body: "Ce n'est pas un chat. C'est un espace pour structurer vos idées, défendre une position et apprendre de la confrontation d'arguments.",
+      body: "Ce n'est pas un chat. C'est un espace pour structurer vos idées, défendre une position et apprendre de la confrontation d'arguments — face à une autre personne.",
     },
     {
-      title: "Choisissez un sujet et un camp",
-      body: "Pour ou contre — puis affrontez un humain ou (bientôt) l'IA. Chaque tour est chronométré pour garder le débat lisible.",
+      title: "Un sujet, deux camps, un message chacun",
+      body: "Vous choisissez une question et une position. Envoyer votre argument passe la parole : personne ne peut vous couper, et vous ne pouvez pas noyer l'autre.",
     },
     {
-      title: "Trois rôles IA",
-      body: `${AI_ROLES.opponent.shortTitle} · ${AI_ROLES.judge.shortTitle} · ${AI_ROLES.coach.shortTitle} — l'IA vous aide à penser, pas à publier à votre place.`,
+      title: "L'IA sécurise, elle ne débat pas",
+      body: `${AI_ROLES.moderation.shortTitle} · ${AI_ROLES.quality.shortTitle} · ${AI_ROLES.coach.shortTitle} — elle bloque les dérapages et vous renvoie des pistes, sans jamais écrire à votre place.`,
     },
   ];
 

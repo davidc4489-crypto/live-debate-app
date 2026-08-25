@@ -1,17 +1,41 @@
-const STATS = [
-  { value: "3 min", label: "Tours de parole minimum" },
-  { value: "2", label: "Camps : pour & contre" },
-  { value: "3", label: "Rôles IA dédiés" },
-] as const;
-
-const QUOTES = [
+/**
+ * Les règles du format, pas des témoignages.
+ *
+ * Cette section affichait deux citations attribuées à une « étudiante en droit »
+ * et à un « enseignant / debater » : des avis inventés, qui se lisent comme de
+ * vrais retours utilisateurs sur une page publique. Remplacés par des faits
+ * vérifiables dans le produit.
+ */
+const RULES = [
   {
-    text: "Enfin un espace où l'on peut développer un argument sans se faire couper.",
-    author: "Étudiante en droit",
+    title: "Deux participants, pas plus",
+    description:
+      "Une salle accueille exactement deux débatteurs. Les autres peuvent suivre en spectateurs, sans jamais interrompre.",
   },
   {
-    text: "La structure force à écouter l'autre camp avant de répondre.",
-    author: "Enseignant / debater",
+    title: "Un message par tour",
+    description:
+      "Envoyer votre argument passe la parole. Impossible de noyer l'autre sous dix messages d'affilée.",
+  },
+  {
+    title: "3, 5 ou 10 minutes pour répondre",
+    description:
+      "Le chronomètre est un délai maximum, pas une course : prenez le temps de formuler, le tour passe si vous ne répondez pas.",
+  },
+  {
+    title: "500 caractères par message",
+    description:
+      "Assez pour un argument construit, trop peu pour un monologue. La contrainte fait le style.",
+  },
+  {
+    title: "Une conclusion chacun",
+    description:
+      "À la fin, les deux camps écrivent ce qu'ils retiennent. C'est ce qui reste du débat.",
+  },
+  {
+    title: "Modération avant publication",
+    description:
+      "Les propos haineux n'atteignent jamais l'autre participant : ils sont bloqués à l'envoi.",
   },
 ] as const;
 
@@ -20,27 +44,19 @@ export function SocialProof() {
     <section className="mkt-section mkt-section--muted" aria-labelledby="proof-title">
       <div className="mkt-container">
         <div className="mkt-section-intro mkt-section-intro--center">
-          <p className="mkt-kicker">Conçu pour la clarté</p>
+          <p className="mkt-kicker">Le cadre</p>
           <h2 id="proof-title" className="mkt-section-title">
-            Un cadre qui change la qualité de l&apos;échange
+            Des règles simples, qui changent la qualité de l&apos;échange
           </h2>
         </div>
-        <ul className="mkt-stats-row landing-proof-stats">
-          {STATS.map((s) => (
-            <li key={s.label} className="mkt-stat">
-              <span className="mkt-stat-number">{s.value}</span>
-              <span className="mkt-stat-label">{s.label}</span>
+        <ul className="landing-rules-grid">
+          {RULES.map((rule) => (
+            <li key={rule.title} className="landing-rule-card">
+              <h3 className="landing-rule-title">{rule.title}</h3>
+              <p className="landing-rule-desc">{rule.description}</p>
             </li>
           ))}
         </ul>
-        <div className="landing-quotes">
-          {QUOTES.map((q) => (
-            <figure key={q.author} className="landing-quote-card card">
-              <blockquote>&laquo;&nbsp;{q.text}&nbsp;&raquo;</blockquote>
-              <figcaption className="muted">— {q.author}</figcaption>
-            </figure>
-          ))}
-        </div>
       </div>
     </section>
   );

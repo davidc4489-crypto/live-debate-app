@@ -1,23 +1,32 @@
 const STEPS = [
   {
     step: "01",
-    title: "Choisissez un sujet",
-    description: "Formulez une question claire ou parcourez les débats ouverts sur la plateforme.",
+    title: "Posez la question",
+    description:
+      "Une question claire, avec deux camps défendables. Ou parcourez les débats déjà ouverts.",
   },
   {
     step: "02",
     title: "Prenez position",
-    description: "Pour ou contre — votre camp guide la structure de l'échange.",
+    description: "Pour ou contre. Vous défendrez ce camp pendant tout l'échange.",
   },
   {
     step: "03",
-    title: "Débattez",
-    description: "Affrontez un humain en direct ou entraînez-vous contre l'IA (adversaire structuré).",
+    title: "Attendez votre adversaire",
+    description:
+      "Un autre participant rejoint la salle, vous validez le départ et le débat commence.",
   },
   {
     step: "04",
-    title: "Analysez",
-    description: "Conclusions, retours du Juge IA et pistes du Coach pour progresser.",
+    title: "Débattez à tour de rôle",
+    description:
+      "Un message chacun. Envoyer le vôtre passe la parole — personne ne peut couper l'autre.",
+  },
+  {
+    step: "05",
+    title: "Concluez",
+    description:
+      "À la fin, chacun rédige sa conclusion. Le débat reste consultable et relisible.",
   },
 ] as const;
 
@@ -28,7 +37,7 @@ export function HowItWorks() {
         <div className="mkt-section-intro mkt-section-intro--center">
           <p className="mkt-kicker">Comment ça marche</p>
           <h2 id="how-title" className="mkt-section-title">
-            Quatre étapes, un objectif : penser mieux
+            Cinq étapes, un objectif : penser mieux
           </h2>
         </div>
         <ol className="landing-steps">

@@ -10,7 +10,7 @@ import { AuthService } from "../auth/auth.service";
 import { NotificationsPushService } from "../notifications/notifications-push.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { SupabaseService } from "../supabase/supabase.service";
-import { DebateCreationService } from "./debate-creation.service";
+import { DebateCreationService, OPPONENT_MODE } from "./debate-creation.service";
 import { castSupabaseRow } from "./debate-db.types";
 import { ProposedDebateListItemDto, ScheduledDebateListItemDto } from "./debates.types";
 import { DebatesService } from "./debates.service";
@@ -58,7 +58,6 @@ export class DebateProposedService {
     title: string,
     turnDuration: number,
     creatorStance?: "for" | "against",
-    opponentMode: "human" | "ai" = "human",
   ): Promise<{ id: string; title: string; status: "proposed" }> {
     const me = await this.authService.getMe(accessToken);
     const trimmedTitle = title.trim();
@@ -91,7 +90,7 @@ export class DebateProposedService {
       created_by: me.id,
       max_turn_time: maxTurnTime,
       max_message_length: 500,
-      opponent_mode: opponentMode,
+      opponent_mode: OPPONENT_MODE,
     };
     if (creatorStance) {
       row.creator_stance = creatorStance;

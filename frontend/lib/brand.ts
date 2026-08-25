@@ -3,28 +3,38 @@ export const APP_NAME = "Argumen";
 export const APP_TAGLINE = "Apprendre à argumenter, pas à réagir";
 
 export const PRODUCT_POSITIONING =
-  "Une plateforme pour apprendre à argumenter, réfléchir et comprendre les idées grâce à des débats structurés — avec des humains ou l'IA.";
+  "Une plateforme de débats structurés entre deux personnes : un sujet, deux camps, " +
+  "des tours de parole. Vous prenez le temps de construire un argument, et l'autre " +
+  "prend le temps d'y répondre.";
 
+/**
+ * Ce que l'IA fait réellement dans l'application.
+ *
+ * Elle n'est jamais un interlocuteur : on ne débat pas contre elle, elle
+ * n'écrit aucun message et ne prend jamais parti. Elle sécurise l'échange et
+ * renvoie des indicateurs. N'ajoutez ici que des rôles réellement implémentés —
+ * cette liste alimente les pages publiques.
+ */
 export const AI_ROLES = {
-  opponent: {
-    id: "opponent",
-    title: "AI Opponent",
-    shortTitle: "Adversaire IA",
+  moderation: {
+    id: "moderation",
+    title: "Modération",
+    shortTitle: "Modération en direct",
     description:
-      "Un partenaire qui contre-argumente sur votre position, sans injure ni dérive — pour tester vos idées.",
+      "Chaque message est analysé avant publication. Les propos injurieux ou haineux sont bloqués, les formulations limites signalées à leur auteur avant l'envoi.",
   },
-  judge: {
-    id: "judge",
-    title: "AI Judge",
-    shortTitle: "Juge IA",
+  quality: {
+    id: "quality",
+    title: "Climat du débat",
+    shortTitle: "Climat du débat",
     description:
-      "Évalue la force, la clarté et la pertinence des arguments des deux camps en fin d'échange.",
+      "Un indice de civilité et de qualité argumentative, calculé au fil de l'échange et visible par les deux participants.",
   },
   coach: {
     id: "coach",
-    title: "AI Coach",
-    shortTitle: "Coach IA",
+    title: "Retour privé",
+    shortTitle: "Retour privé",
     description:
-      "Suggère comment reformuler, structurer ou renforcer vos arguments — sans écrire à votre place.",
+      "Après chaque message, vous seul recevez des pistes pour structurer ou étayer votre argument. Rien n'est écrit à votre place.",
   },
 } as const;
