@@ -13,6 +13,7 @@ export function LandingFooter() {
           <Link href="/explore">Explorer les débats</Link>
           <Link href="/start">Lancer un débat</Link>
           <Link href="/notre-mission">Notre mission</Link>
+          <Link href="/confidentialite">Confidentialité</Link>
         </nav>
         <p className="landing-footer-copy muted">
           © {new Date().getFullYear()} {APP_NAME}. Tous droits réservés.

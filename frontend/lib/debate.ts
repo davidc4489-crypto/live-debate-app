@@ -79,22 +79,31 @@ export function getDebateCtaLabel(status: DebateStatus, options?: DebateCtaOptio
 
   if (status === "paused") {
     const userId = options?.currentUserId ?? null;
-    const pausedBy = options?.pausedByUserId ?? null;
     const resumeRequested = Boolean(options?.resumeRequestedAt);
 
     if (!isDebateParticipant(userId, options?.participants)) {
       return "Voir le débat";
     }
-    if (userId && pausedBy === userId) {
-      return "Reprendre le débat";
-    }
     if (resumeRequested) {
       return "Valider la reprise";
     }
-    return "Débat en pause";
+    // Les deux participants peuvent demander la reprise, plus seulement celui
+    // qui a mis en pause : l'action est donc la même pour l'un et pour l'autre.
+    return "Demander la reprise";
   }
 
-  return "Rejoindre";
+  // Salle en attente : le créateur y retourne, un visiteur y prend la place.
+  if (isDebateParticipant(options?.currentUserId, options?.participants)) {
+    return "Retourner dans la salle";
+  }
+
+  return "Rejoindre le débat";
+}
+
+/** « 1 message » / « 3 messages » / « Aucun message ». */
+export function formatMessageCount(count: number): string {
+  if (count === 0) return "Aucun message";
+  return `${count} message${count > 1 ? "s" : ""}`;
 }
 
 /** Débat terminé → vues ; en cours / en attente → spectateurs uniquement */

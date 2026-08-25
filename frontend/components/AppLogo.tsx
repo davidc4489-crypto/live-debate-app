@@ -6,6 +6,9 @@ type AppLogoVariant = "icon" | "full";
 
 interface AppLogoProps {
   href?: string;
+  /** `false` rend un logo décoratif : à l'intérieur d'une modale, un lien
+   *  ferait quitter la page en pleine saisie. */
+  asLink?: boolean;
   variant?: AppLogoVariant;
   showName?: boolean;
   size?: "sm" | "md";
@@ -20,6 +23,7 @@ const FULL_SIZES = {
 
 export function AppLogo({
   href = "/",
+  asLink = true,
   variant = "icon",
   showName = true,
   size = "md",
@@ -54,7 +58,7 @@ export function AppLogo({
     className ? ` ${className}` : ""
   }`;
 
-  if (href) {
+  if (href && asLink) {
     return (
       <Link href={href} className={classes} aria-label={`${APP_NAME} — accueil`}>
         {content}

@@ -257,18 +257,44 @@ export function ExplorePageClient() {
     return favoriteDebates.filter((debate) => debate.theme === activeTheme);
   }, [activeTheme, favoriteDebates]);
 
-  const latestDebates = filteredDebates;
-  const trendingDebates = [...filteredDebates]
-    .sort((a, b) => getDebatePopularityScore(b) - getDebatePopularityScore(a))
-    .slice(0, 6);
-  const continueWatching = filteredDebates.filter((debate) => debate.messagesCount >= 10);
+  /*
+   * Découpage par état plutôt que par « dernier / populaire / à suivre » : un
+   * visiteur cherche d'abord une salle où il peut entrer. Les échanges en cours
+   * (spectateur), puis les salles qui attendent un adversaire (participant),
+   * puis les archives. Les plus actifs remontent dans chaque groupe.
+   */
+  const byPopularity = (a: DebateListItem, b: DebateListItem) =>
+    getDebatePopularityScore(b) - getDebatePopularityScore(a);
 
-  function renderDebateCard(debate: DebateListItem, trending = false) {
+  const liveDebates = useMemo(
+    () => filteredDebates.filter((d) => d.status === "active").sort(byPopularity),
+    [filteredDebates],
+  );
+
+  const openDebates = useMemo(
+    () => filteredDebates.filter((d) => d.status === "pending").sort(byPopularity),
+    [filteredDebates],
+  );
+
+  const finishedDebates = useMemo(
+    () =>
+      filteredDebates
+        .filter((d) => d.status === "finished" || d.status === "paused")
+        .sort(byPopularity),
+    [filteredDebates],
+  );
+
+  const isCatalogueEmpty =
+    filteredDebates.length === 0 &&
+    filteredProposed.length === 0 &&
+    filteredScheduled.length === 0 &&
+    filteredFavorites.length === 0;
+
+  function renderDebateCard(debate: DebateListItem) {
     return (
       <DebateCard
         key={debate.id}
         debate={debate}
-        trending={trending}
         showFavorite={Boolean(user)}
         isFavorite={favoriteIds.has(debate.id)}
         favoriteLoading={favoriteLoadingId === debate.id}
@@ -297,109 +323,98 @@ export function ExplorePageClient() {
       <FilterChips themes={debateThemes} activeTheme={activeTheme} onChange={setActiveTheme} />
 
       <div className="explore-sections">
-
-          {loading ? (
-            <SectionLayout title="Chargement" subtitle="Récupération des débats depuis la base de données.">
-              <div className="empty-state">Chargement en cours…</div>
-            </SectionLayout>
-          ) : error ? (
-            <SectionLayout title="Erreur" subtitle="Les débats n'ont pas pu être chargés.">
-              <div className="empty-state">{error}</div>
-            </SectionLayout>
-          ) : (
-            <>
-              {user ? (
-                <SectionLayout
-                  title="Mes favoris"
-                  subtitle="Débats enregistrés pour les retrouver rapidement."
-                  variant="muted"
-                >
-                  {favoritesLoading ? (
-                    <div className="empty-state">Chargement de vos favoris…</div>
-                  ) : favoritesError ? (
-                    <div className="empty-state">{favoritesError}</div>
-                  ) : filteredFavorites.length > 0 ? (
-                    <div className="debate-grid">{filteredFavorites.map((d) => renderDebateCard(d))}</div>
-                  ) : (
-                    <div className="empty-state">
-                      Aucun favori. Cliquez sur l&apos;étoile d&apos;un débat pour l&apos;ajouter.
-                    </div>
-                  )}
-                </SectionLayout>
-              ) : null}
-
+        {loading ? (
+          <DebateGridSkeleton />
+        ) : error ? (
+          <div className="explore-error card" role="alert">
+            <h2>Les débats n&apos;ont pas pu être chargés</h2>
+            <p className="muted">{error}</p>
+            <button type="button" className="btn btn-secondary" onClick={() => void refreshDebatesFromApi()}>
+              Réessayer
+            </button>
+          </div>
+        ) : isCatalogueEmpty ? (
+          /* Base vide ou filtre sans résultat : une seule invitation claire,
+             plutôt que six sections « aucun débat » empilées. */
+          <EmptyState
+            title={
+              activeTheme === "Tous"
+                ? "Aucun débat pour l'instant"
+                : `Aucun débat en « ${activeTheme} »`
+            }
+            description={
+              activeTheme === "Tous"
+                ? "Vous pouvez ouvrir le premier : posez une question, choisissez votre camp, et attendez un adversaire."
+                : "Changez de thème, ou lancez le premier débat sur celui-ci."
+            }
+            actionLabel="Lancer un débat"
+            onAction={handleCreateDebateClick}
+          />
+        ) : (
+          <>
+            {user && filteredFavorites.length > 0 ? (
               <SectionLayout
-                title="Débats proposés"
-                subtitle="Sujets sans date — manifestez votre intérêt ou planifiez un créneau."
+                title="Mes favoris"
+                subtitle="Débats enregistrés pour les retrouver rapidement."
+                variant="muted"
               >
-                {proposedLoading ? (
-                  <div className="empty-state">Chargement…</div>
-                ) : filteredProposed.length > 0 ? (
-                  <div className="debate-grid">{filteredProposed.map((d) => renderDebateCard(d))}</div>
-                ) : (
-                  <EmptyState
-                    title="Aucun débat proposé"
-                    description="Soyez le premier à publier un sujet et trouver un adversaire."
-                    actionLabel="Proposer un sujet"
-                    actionHref="/start"
-                  />
-                )}
+                <div className="debate-grid">{filteredFavorites.map((d) => renderDebateCard(d))}</div>
               </SectionLayout>
+            ) : null}
 
+            {liveDebates.length > 0 ? (
+              <SectionLayout
+                id="live"
+                title="En direct"
+                subtitle="Échanges en cours — rejoignez-les comme spectateur."
+              >
+                <div className="debate-grid">{liveDebates.map((d) => renderDebateCard(d))}</div>
+              </SectionLayout>
+            ) : null}
+
+            {openDebates.length > 0 ? (
+              <SectionLayout
+                id="open"
+                title="Salles ouvertes"
+                subtitle="Un participant attend un adversaire — la place est à prendre."
+                variant="muted"
+              >
+                <div className="debate-grid">{openDebates.map((d) => renderDebateCard(d))}</div>
+              </SectionLayout>
+            ) : null}
+
+            {filteredProposed.length > 0 ? (
+              <SectionLayout
+                title="Sujets proposés"
+                subtitle="Sans date — manifestez votre intérêt et convenez d'un créneau."
+              >
+                <div className="debate-grid">{filteredProposed.map((d) => renderDebateCard(d))}</div>
+              </SectionLayout>
+            ) : null}
+
+            {filteredScheduled.length > 0 ? (
               <SectionLayout
                 title="Débats planifiés"
                 subtitle="Dates confirmées — les prochains créneaux en premier."
                 variant="muted"
               >
-                {scheduledLoading ? (
-                  <div className="empty-state">Chargement…</div>
-                ) : filteredScheduled.length > 0 ? (
-                  <div className="debate-grid">{filteredScheduled.map((d) => renderDebateCard(d))}</div>
-                ) : (
-                  <div className="empty-state">
-                    Aucun débat planifié pour le moment.
-                  </div>
-                )}
+                <div className="debate-grid">{filteredScheduled.map((d) => renderDebateCard(d))}</div>
               </SectionLayout>
+            ) : null}
 
-              {continueWatching.length > 0 ? (
-                <SectionLayout title="À suivre" subtitle="Les échanges les plus actifs en ce moment.">
-                  <div className="debate-grid">{continueWatching.map((d) => renderDebateCard(d))}</div>
-                </SectionLayout>
-              ) : null}
-
+            {finishedDebates.length > 0 ? (
               <SectionLayout
-                id="latest"
-                title="Derniers débats"
-                subtitle="Discussions récentes, prêtes à rejoindre."
+                id="finished"
+                title="Débats terminés"
+                subtitle="À relire : les arguments des deux camps et leurs conclusions."
               >
-                {latestDebates.length > 0 ? (
-                  <div className="debate-grid">{latestDebates.map((d) => renderDebateCard(d))}</div>
-                ) : (
-                  <EmptyState
-                    title="Aucun débat ici"
-                    description="Changez de filtre ou créez le premier débat sur ce thème."
-                    actionLabel="Créer un débat"
-                    onAction={handleCreateDebateClick}
-                  />
-                )}
+                <div className="debate-grid">
+                  {finishedDebates.map((d) => renderDebateCard(d))}
+                </div>
               </SectionLayout>
-
-              <SectionLayout
-                title="Populaires"
-                subtitle="Classés par spectateurs (en cours) ou vues (terminés)."
-                variant="muted"
-              >
-                {trendingDebates.length > 0 ? (
-                  <div className="debate-grid">
-                    {trendingDebates.map((d) => renderDebateCard(d, true))}
-                  </div>
-                ) : (
-                  <div className="empty-state">Aucun débat populaire pour ce filtre.</div>
-                )}
-              </SectionLayout>
-            </>
-          )}
+            ) : null}
+          </>
+        )}
       </div>
 
       <AuthModal
@@ -420,5 +435,21 @@ export function ExplorePageClient() {
         onSwitchMode={setAuthMode}
       />
     </div>
+  );
+}
+
+/** Cartes fantômes pendant le chargement : la page garde sa forme. */
+function DebateGridSkeleton() {
+  return (
+    <section className="section section--default" aria-busy="true" aria-live="polite">
+      <div className="section-inner">
+        <span className="sr-only">Chargement des débats…</span>
+        <div className="debate-grid" aria-hidden="true">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="debate-card-skeleton" />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AuthModal, AuthModalMode } from "@/components/AuthModal";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDebateDate } from "@/lib/debate";
 import { createNote, deleteNote, fetchNotes, Note, updateNote } from "@/lib/notes-api";
 import { useAuthSession } from "@/lib/useAuthSession";
@@ -120,12 +121,12 @@ export function NotebookClient() {
   if (!user) {
     return (
       <>
-        <div className="empty-state">
-          <p>Connectez-vous pour accéder à votre notebook.</p>
-          <button type="button" className="btn btn-primary" onClick={() => setAuthOpen(true)}>
-            Se connecter
-          </button>
-        </div>
+        <EmptyState
+          title="Votre notebook est privé"
+          description="Connectez-vous pour y retrouver vos notes sur les débats — elles ne sont visibles que par vous."
+          actionLabel="Se connecter"
+          onAction={() => setAuthOpen(true)}
+        />
         <AuthModal
           open={authOpen}
           mode={authMode}
@@ -169,7 +170,12 @@ export function NotebookClient() {
           ) : null}
         </div>
         {notes.length === 0 ? (
-          <p className="muted notebook-empty">Aucune note pour le moment.</p>
+          <EmptyState
+            title="Aucune note pour l'instant"
+            description="Prenez des notes pendant un débat pour garder une trace d'un argument, d'une source ou d'une idée à creuser."
+            actionLabel="Explorer les débats"
+            actionHref="/explore"
+          />
         ) : (
           <div className="notebook-grid">
             {notes.map((note) => (

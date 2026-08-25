@@ -4,6 +4,7 @@ import { ParticipantPill } from "@/components/ParticipantPill";
 import {
   DebateListItem,
   formatDebateDate,
+  formatMessageCount,
   formatScheduledDate,
   getDebateAudienceLabel,
   getDebateCtaLabel,
@@ -11,7 +12,6 @@ import {
 
 interface DebateCardProps {
   debate: DebateListItem;
-  trending?: boolean;
   isFavorite?: boolean;
   showFavorite?: boolean;
   favoriteLoading?: boolean;
@@ -21,7 +21,6 @@ interface DebateCardProps {
 
 export function DebateCard({
   debate,
-  trending = false,
   isFavorite = false,
   showFavorite = false,
   favoriteLoading = false,
@@ -41,7 +40,7 @@ export function DebateCard({
 
   return (
     <article
-      className={`debate-card reveal ${trending ? "debate-card--trending" : ""} ${debate.isLive ? "debate-card--live" : ""}`}
+      className={`debate-card reveal${debate.isLive ? " debate-card--live" : ""}`}
     >
       <div className="card-topline">
         <div className="card-topline-badges">
@@ -51,7 +50,6 @@ export function DebateCard({
           {debate.status === "paused" ? <span className="status-badge">En pause</span> : null}
           {debate.status === "proposed" ? <span className="status-badge">Proposé</span> : null}
           {debate.status === "scheduled" ? <span className="status-badge status-badge--accent">Planifié</span> : null}
-          {trending ? <span className="trend-badge">À la une</span> : null}
         </div>
         {showFavorite && onFavoriteToggle ? (
           <FavoriteButton
@@ -80,7 +78,7 @@ export function DebateCard({
       ) : null}
 
       <div className="debate-card-meta">
-        <span>{debate.messagesCount} messages</span>
+        <span>{formatMessageCount(debate.messagesCount)}</span>
         <span aria-hidden="true">·</span>
         <span>{formatDebateDate(debate.createdAt)}</span>
         <span aria-hidden="true">·</span>

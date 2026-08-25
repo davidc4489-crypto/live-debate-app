@@ -1670,6 +1670,173 @@
 
 
   /* --- Cadre du format (remplace les anciens témoignages) --------------- */
+  /* --- Utilitaires transverses ------------------------------------------ */
+  /* Texte réservé aux lecteurs d'écran (états de chargement, libellés). */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Carte fantôme : la grille garde sa forme pendant le chargement. */
+  .debate-card-skeleton {
+    @apply rounded-lg border border-border bg-white shadow-card;
+    height: 190px;
+    background-image: linear-gradient(
+      100deg,
+      rgba(0, 0, 0, 0) 30%,
+      rgba(0, 0, 0, 0.035) 50%,
+      rgba(0, 0, 0, 0) 70%
+    );
+    background-size: 220% 100%;
+    animation: skeleton-sweep 1.4s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-sweep {
+    from {
+      background-position: 180% 0;
+    }
+    to {
+      background-position: -60% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .debate-card-skeleton {
+      animation: none;
+    }
+  }
+
+  .explore-error {
+    @apply p-8 text-center;
+  }
+
+  .explore-error h2 {
+    @apply m-0 mb-2;
+  }
+
+  .explore-error .btn {
+    @apply mt-4;
+  }
+
+  /* --- Authentification -------------------------------------------------- */
+  .auth-password-field {
+    @apply relative flex items-center;
+  }
+
+  .auth-password-field input {
+    @apply w-full;
+    padding-right: 5.5rem;
+  }
+
+  .auth-password-toggle {
+    @apply absolute right-2 rounded px-2 py-1 text-[12px] font-medium text-ink-muted;
+    @apply transition-colors duration-150;
+  }
+
+  .auth-password-toggle:hover {
+    @apply text-ink;
+  }
+
+  .auth-field-hint {
+    @apply mt-1 block text-[12px] font-normal text-ink-muted;
+  }
+
+  .auth-success {
+    @apply m-0 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[14px] leading-relaxed text-emerald-900;
+  }
+
+  .auth-confirmation {
+    @apply mt-4 flex flex-col gap-4;
+  }
+
+  /* --- Pages d'état (404, erreur) ---------------------------------------- */
+  .status-page {
+    @apply flex flex-col items-start gap-3 py-16;
+  }
+
+  .status-page h1 {
+    @apply m-0;
+  }
+
+  .status-page-actions {
+    @apply mt-4 flex flex-wrap gap-3;
+  }
+
+  .status-page-digest {
+    @apply mt-8 text-[12px];
+  }
+
+  /* --- Pages légales ------------------------------------------------------ */
+  .legal-page {
+    @apply flex flex-col gap-5 py-8;
+  }
+
+  .legal-header h1 {
+    @apply m-0 mt-1;
+  }
+
+  .legal-lead {
+    @apply m-0 mt-2 max-w-2xl;
+  }
+
+  .legal-section {
+    @apply p-6;
+  }
+
+  .legal-section h2 {
+    @apply m-0 mb-3;
+  }
+
+  .legal-section p {
+    @apply m-0 mb-3 max-w-3xl text-[14px] leading-relaxed text-ink-secondary last:mb-0;
+  }
+
+  .legal-footer {
+    @apply mt-2;
+  }
+
+  /* --- Bandeau de connexion temps réel ----------------------------------- */
+  .connection-banner {
+    @apply sticky z-30 flex items-center justify-center gap-2 px-4 py-2 text-[13px] font-medium;
+    top: var(--topbar-h);
+  }
+
+  .connection-banner--connecting {
+    @apply border-b border-amber-200 bg-amber-50 text-amber-900;
+  }
+
+  .connection-banner--offline {
+    @apply border-b border-red-200 bg-red-50 text-red-900;
+  }
+
+  .connection-banner-dot {
+    @apply h-2 w-2 shrink-0 rounded-full bg-current;
+    animation: connection-pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes connection-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .connection-banner-dot {
+      animation: none;
+    }
+  }
+
   .landing-rules-grid {
     @apply m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3;
   }

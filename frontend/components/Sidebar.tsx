@@ -93,12 +93,6 @@ export function Sidebar() {
             active={isActive("/explore")}
             icon={<DebateIcon />}
           />
-          <SidebarLink
-            href="/start"
-            label="Lancer"
-            active={isActive("/start")}
-            icon={<PlusIcon />}
-          />
           {user ? (
             <SidebarLink
               href="/notebook"
@@ -113,6 +107,12 @@ export function Sidebar() {
             active={isActive("/notre-mission")}
             icon={<MissionIcon />}
           />
+          <SidebarLink
+            href="/confidentialite"
+            label="Confidentialité"
+            active={isActive("/confidentialite")}
+            icon={<ShieldIcon />}
+          />
         </nav>
 
         <div className="sidebar-footer">
@@ -120,11 +120,11 @@ export function Sidebar() {
             type="button"
             className="sidebar-cta"
             onClick={handleCreate}
-            title="Créer un débat"
-            aria-label="Créer un débat"
+            title="Lancer un débat"
+            aria-label="Lancer un débat"
           >
             <PlusIcon />
-            <span className="sidebar-item-label">Créer débat</span>
+            <span className="sidebar-item-label">Lancer un débat</span>
           </button>
         </div>
       </aside>
@@ -227,6 +227,21 @@ function MissionIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M12 8v4l3 2"
+      />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6l7-3z"
       />
     </svg>
   );
